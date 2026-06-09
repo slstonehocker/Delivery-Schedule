@@ -245,13 +245,43 @@ function searchOrder() {
       delivery.orderNumber.toLowerCase().includes(searchValue)
     ) {
       const dateKey = key.split("-slot-")[0];
-      const slot = key.split("-slot-")[1];
+      const slot    = key.split("-slot-")[1];
 
-      openPopup(dateKey, slot);
+      // Navigate to the week containing this delivery
+      const deliveryDate = new Date(dateKey + "T12:00:00");
+      currentMonday = getMonday(deliveryDate);
+      renderCalendar();
 
-      alert(
-        `Found Order ${delivery.orderNumber}\n\nDate: ${dateKey}\nSlot: ${slot}`
-      );
+      // Highlight the slot after rendering
+      setTimeout(() => {
+        // Find all slot elements and match by onclick attribute
+        const allSlots = document.querySelectorAll(".slot");
+        let targetSlot = null;
+        allSlots.forEach(s => {
+          const attr = s.getAttribute("onclick") || "";
+          if (attr.includes(`'${dateKey}'`) && attr.includes(`, ${slot})`)) {
+            targetSlot = s;
+          }
+        });
+
+        if (targetSlot) {
+          // Scroll the slot into view
+          targetSlot.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          // Flash highlight animation
+          targetSlot.style.transition = "box-shadow 0.2s, transform 0.2s";
+          targetSlot.style.boxShadow  = "0 0 0 3px #811419, 0 4px 16px rgba(129,20,25,0.35)";
+          targetSlot.style.transform  = "scale(1.03)";
+
+          setTimeout(() => {
+            targetSlot.style.boxShadow = "";
+            targetSlot.style.transform = "";
+          }, 1500);
+        }
+
+        // Open the popup
+        openPopup(dateKey, slot);
+      }, 50);
 
       return;
     }
