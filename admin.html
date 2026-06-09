@@ -395,7 +395,7 @@
 <div class="header">
   <a class="back-link" href="index.html">&#8592; Back to Calendar</a>
   <h1>&#9881; Admin Panel</h1>
-
+  <span class="badge">Admin Only</span>
 </div>
  
 <div class="page">
@@ -732,6 +732,12 @@
   }
  
   // ── Init ──
+  const urlParams = new URLSearchParams(window.location.search);
+  const jumpDate  = urlParams.get("date");
+  if (jumpDate) {
+    const d = new Date(jumpDate + "T12:00:00");
+    currentMonday = getMonday(d);
+  }
   render();
 </script>
 </body>

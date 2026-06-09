@@ -165,6 +165,7 @@ function saveDelivery() {
 
 async function sendApprovalEmail(dateKey, slot, delivery) {
   try {
+    const adminLink = `${window.location.origin}${window.location.pathname.replace("index.html", "")}admin.html?date=${dateKey}`;
     await emailjs.send(
       "service_7alcqe6",
       "template_q7tskkd",
@@ -176,7 +177,8 @@ async function sendApprovalEmail(dateKey, slot, delivery) {
         phoneNumber:   delivery.phoneNumber   || "—",
         preferredTime: delivery.preferredTime || "—",
         address:       delivery.address       || "—",
-        deliveryNotes: delivery.deliveryNotes || "—"
+        deliveryNotes: delivery.deliveryNotes || "—",
+        adminLink:     adminLink
       }
     );
     console.log("Approval email sent for Order #" + delivery.orderNumber);
