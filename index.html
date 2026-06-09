@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Delivery Calendar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Delivery Schedule Calendar </h1>
+    
+    <div class = "controls">
+    <button onclick="changeWeek(-1)">Previous Week</button>
+         <h2 id="weekTitle"></h2>
+    <button onclick="changeWeek(1)">Next Week</button>
+  </div>
+
+  <div id="calendar"></div>
+
+  <div id="popup" class="popup hidden">
+    <div class="popup-box">
+      <h2 id="popupTitle">Add Delivery</h2>
+
+      <label>Customer / Job Name</label>
+      <input id="customer" type="text">
+
+      <label>Address</label>
+      <input id="address" type="text">
+
+     <label>Materials</label>
+        <textarea id="materials"></textarea>
+
+     <label>notes</label>
+        <textarea id ="notes"></textarea>
+
+      <div class="buttons">
+        <button onclick="saveDelivery()">Save</button>
+        <button onclick="deleteDelivery()">Delete</button>
+        <button onclick="closePopup()">Cancel</button>
+      </div>
+    </div>
+  </div>
+   
+   
+
+  <script src="app.js"></script>
+</body>
+</html>
