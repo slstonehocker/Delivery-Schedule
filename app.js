@@ -96,7 +96,12 @@ function renderCalendar() {
         `;
       }
 
-      slotBox.setAttribute("onclick", `openPopup('${dateKey}', ${slot})`);
+      if (!isBlocked) {
+        slotBox.setAttribute("onclick", `openPopup('${dateKey}', ${slot})`);
+      } else {
+        slotBox.style.cursor = "not-allowed";
+        slotBox.style.opacity = "0.6";
+      }
       dayBox.appendChild(slotBox);
     }
 
