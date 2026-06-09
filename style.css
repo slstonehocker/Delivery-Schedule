@@ -45,6 +45,18 @@ button:hover {
   opacity: 0.9;
 }
 
+#todayBtn {
+  background: white;
+  color: var(--maroon);
+  border: 2px solid var(--maroon);
+}
+
+#todayBtn:hover {
+  background: var(--maroon);
+  color: white;
+  opacity: 1;
+}
+
 #calendar {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

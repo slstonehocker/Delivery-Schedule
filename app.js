@@ -297,6 +297,11 @@ function searchOrder() {
   alert("Order not found.");
 }
 
+function goToToday() {
+  currentMonday = getMonday(new Date());
+  renderCalendar();
+}
+
 function clearSearch() {
   document.getElementById("searchOrder").value = "";
 }
