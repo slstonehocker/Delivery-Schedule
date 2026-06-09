@@ -6,11 +6,12 @@
 </head>
 <body>
 
-  <h1>Delivery Schedule Calendar </h1>
-    
-    <div class = "controls">
+  <h1>Sheridan Delivery Schedule Calendar</h1>
+
+  <div class="controls">
     <button onclick="changeWeek(-1)">Previous Week</button>
-         <h2 id="weekTitle"></h2>
+    <h2 
+        id="weekTitle"></h2>
     <button onclick="changeWeek(1)">Next Week</button>
   </div>
 
@@ -20,17 +21,25 @@
     <div class="popup-box">
       <h2 id="popupTitle">Add Delivery</h2>
 
-      <label>Customer / Job Name</label>
-      <input id="customer" type="text">
+      <label>Order Number</label>
+      <input id="orderNumber" type="text">
 
-      <label>Address</label>
-      <input id="address" type="text">
+      <label>Onsite Contact</label>
+      <input id="onsiteContact" type="text">
+        
+        <label>Phone Number</label>
+      <input id="phoneNumber" type="text">
 
-     <label>Materials</label>
-        <textarea id="materials"></textarea>
+      <label>Preferred Time</label>
+      <select id="preferredTime">
+        <option value="Early Morning">Early Morning</option>
+        <option value="Late Morning">Late Morning</option>
+        <option value="Early Afternoon">Early Afternoon</option>
+        <option value="Late Afternoon">Late Afternoon</option>
+      </select>
 
-     <label>notes</label>
-        <textarea id ="notes"></textarea>
+      <label>Address (optional)</label>
+      <textarea id="address"></textarea>
 
       <div class="buttons">
         <button onclick="saveDelivery()">Save</button>
@@ -39,8 +48,6 @@
       </div>
     </div>
   </div>
-   
-   
 
   <script src="app.js"></script>
 </body>
