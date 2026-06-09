@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Admin – Delivery Calendar</title>
+  <style>
+    :root {
+      --maroon: #811419;
+      --maroon-dark: #5e0f13;
+      --maroon-light: #f9eaea;
+      --white: #ffffff;
+      --light-gray: #f5f5f5;
+      --border: #dddddd;
+      --warning: #b45309;
+      --warning-bg: #fef3c7;
+      --danger: #991b1b;
+      --danger-bg: #fee2e2;
+      --success: #166534;
+      --success-bg: #dcfce7;
+    }
+ 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--light-gray);
+      min-height: 100vh;
+    }
+ 
+    /* ── Header ── */
+    .header {
+      background: var(--maroon);
+      color: white;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .header h1 { font-size: 20px; letter-spacing: .5px; }
+    .header .badge {
+      background: white;
+      color: var(--maroon);
+      font-size: 11px;
+      font-weight: bold;
+      padding: 3px 10px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .back-link {
+      color: rgba(255,255,255,.8);
+      text-decoration: none;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color .15s;
+    }
+    .back-link:hover { color: white; }
+ 
+    /* ── Layout ── */
+    .page {
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+ 
+    /* ── Cards ── */
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .card-header {
+      background: var(--maroon);
+      color: white;
+      padding: 14px 20px;
+      font-weight: bold;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-body { padding: 20px; }
+ 
+    /* ── Block Day Panel ── */
+    .block-section { margin-bottom: 24px; }
+    .block-section label {
+      display: block;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .block-section input[type="date"],
+    .block-section textarea,
+    .block-section select {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: Arial, sans-serif;
+    }
+    .block-section input[type="date"]:focus,
+    .block-section textarea:focus,
+    .block-section select:focus {
+      outline: none;
+      border-color: var(--maroon);
+    }
+    .block-section textarea { height: 70px; resize: vertical; }
+ 
+    .reason-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .pill {
+      padding: 5px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: 13px;
+      cursor: pointer;
+      background: white;
+      color: #555;
+      transition: all .15s;
+      user-select: none;
+    }
+    .pill:hover { border-color: var(--maroon); color: var(--maroon); }
+    .pill.active {
+      background: var(--maroon);
+      border-color: var(--maroon);
+      color: white;
+    }
+ 
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-maroon { background: var(--maroon); color: white; }
+    .btn-outline {
+      background: white;
+      color: var(--maroon);
+      border: 1.5px solid var(--maroon);
+    }
+ 
+    /* ── Blocked Days List ── */
+    .blocked-list { display: flex; flex-direction: column; gap: 10px; }
+    .blocked-item {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--danger);
+      border-radius: 6px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fff;
+    }
+    .blocked-item .info .date-label {
+      font-weight: bold;
+      color: #111;
+      font-size: 14px;
+    }
+    .blocked-item .info .reason-tag {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--danger-bg);
+      color: var(--danger);
+      font-weight: bold;
+    }
+    .blocked-item .info .note {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .unblock-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+      color: #555;
+      white-space: nowrap;
+      transition: all .15s;
+      flex-shrink: 0;
+    }
+    .unblock-btn:hover { border-color: var(--maroon); color: var(--maroon); }
+ 
+    .empty-state {
+      text-align: center;
+      color: #999;
+      font-style: italic;
+      padding: 20px 0;
+      font-size: 14px;
+    }
+ 
+    /* ── Right column: delivery management ── */
+    .week-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .week-nav button {
+      background: none;
+      border: 1.5px solid var(--maroon);
+      color: var(--maroon);
+      padding: 5px 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      transition: all .15s;
+    }
+    .week-nav button:hover { background: var(--maroon); color: white; }
+    .week-nav .week-label { font-weight: bold; color: var(--maroon); font-size: 15px; }
+ 
+    .delivery-grid {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+ 
+    /* Day block */
+    .day-block {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .day-block.day-blocked {
+      border-color: var(--danger);
+      opacity: .85;
+    }
+    .day-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--maroon-light);
+      font-weight: bold;
+      font-size: 14px;
+      color: var(--maroon);
+    }
+    .day-title.blocked-title {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+    .day-title .blocked-badge {
+      font-size: 11px;
+      background: var(--danger);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: bold;
+      letter-spacing: .5px;
+    }
+ 
+    /* Delivery rows */
+    .delivery-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 130px 110px;
+      align-items: center;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      gap: 10px;
+      font-size: 13px;
+    }
+    .delivery-row:hover { background: #fafafa; }
+    .slot-label { font-weight: bold; color: #555; }
+    .delivery-info .order { font-weight: bold; color: #111; }
+    .delivery-info .sub { color: #777; font-size: 12px; margin-top: 1px; }
+    .status-badge {
+      font-size: 11px;
+      font-weight: bold;
+      padding: 3px 9px;
+      border-radius: 99px;
+      text-align: center;
+    }
+    .status-pending { background: var(--maroon); color: white; }
+    .status-cancelled { background: var(--danger-bg); color: var(--danger); }
+    .status-empty { background: #eee; color: #888; }
+ 
+    .cancel-slot-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+      color: #555;
+      transition: all .15s;
+    }
+    .cancel-slot-btn:hover { border-color: var(--danger); color: var(--danger); }
+    .cancel-slot-btn.restore {
+      border-color: var(--success);
+      color: var(--success);
+    }
+    .cancel-slot-btn.restore:hover { background: var(--success-bg); }
+    .empty-slot { color: #bbb; font-style: italic; }
+ 
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: #1a1a1a;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all .25s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+ 
+    /* ── Confirm modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: white;
+      border-radius: 10px;
+      border-top: 5px solid var(--danger);
+      padding: 28px;
+      width: 380px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.2);
+    }
+    .modal-box h3 { color: var(--danger); margin-bottom: 10px; }
+    .modal-box p { color: #444; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns button { flex: 1; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; border: none; }
+    .modal-confirm { background: var(--danger); color: white; }
+    .modal-cancel-btn { background: #eee; color: #333; }
+  </style>
+</head>
+<body>
+ 
+<div class="header">
+  <a class="back-link" href="index.html">&#8592; Back to Calendar</a>
+  <h1>&#9881; Admin Panel</h1>
+  <span class="badge">Admin Only</span>
+</div>
+ 
+<div class="page">
+ 
+  <!-- LEFT: Block a day -->
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">&#128683; Block a Day</div>
+      <div class="card-body">
+        <div class="block-section">
+          <label>Date to Block</label>
+          <input type="date" id="blockDate">
+        </div>
+        <div class="block-section">
+          <label>Reason</label>
+          <div class="reason-pills" id="reasonPills">
+            <span class="pill active" data-reason="Weather">&#127783; Weather</span>
+            <span class="pill" data-reason="Holiday">&#127881; Holiday</span>
+            <span class="pill" data-reason="Staff Shortage">&#128119; Staff Shortage</span>
+            <span class="pill" data-reason="Equipment">&#128295; Equipment</span>
+            <span class="pill" data-reason="Other">Other</span>
+          </div>
+        </div>
+        <div class="block-section">
+          <label>Note (optional)</label>
+          <textarea id="blockNote" placeholder="e.g. Blizzard warning — all deliveries suspended"></textarea>
+        </div>
+        <button class="btn btn-danger" onclick="blockDay()">Block This Day</button>
+      </div>
+    </div>
+ 
+    <!-- Blocked days list -->
+    <div class="card">
+      <div class="card-header">&#128197; Blocked Days</div>
+      <div class="card-body">
+        <div class="blocked-list" id="blockedList"></div>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- RIGHT: Weekly delivery management -->
+  <div class="card">
+    <div class="card-header">&#128666; Manage Deliveries</div>
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)">&#8592; Prev</button>
+      <span class="week-label" id="weekLabel"></span>
+      <button onclick="changeWeek(1)">Next &#8594;</button>
+    </div>
+    <div class="delivery-grid" id="deliveryGrid"></div>
+  </div>
+ 
+</div>
+ 
+<!-- Confirm modal -->
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Confirm Action</h3>
+    <p id="modalMessage"></p>
+    <div class="modal-btns">
+      <button class="modal-cancel-btn" onclick="closeModal()">Go Back</button>
+      <button class="modal-confirm" id="modalConfirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+ 
+<script>
+  // ── Shared storage keys (same localStorage as main calendar) ──
+  const DELIVERIES_KEY = "deliveries";
+  const BLOCKED_KEY    = "blockedDays";   // { "2025-06-10": { reason, note } }
+  const CANCELLED_KEY  = "cancelledSlots"; // Set of slot keys that admin cancelled
+ 
+  let deliveries    = JSON.parse(localStorage.getItem(DELIVERIES_KEY))    || {};
+  let blockedDays   = JSON.parse(localStorage.getItem(BLOCKED_KEY))       || {};
+  let cancelledSlots= JSON.parse(localStorage.getItem(CANCELLED_KEY))     || {};
+ 
+  let currentMonday = getMonday(new Date());
+  let selectedReason = "Weather";
+  let pendingAction  = null;
+ 
+  // ── Pill selection ──
+  document.querySelectorAll(".pill").forEach(p => {
+    p.addEventListener("click", () => {
+      document.querySelectorAll(".pill").forEach(x => x.classList.remove("active"));
+      p.classList.add("active");
+      selectedReason = p.dataset.reason;
+    });
+  });
+ 
+  // ── Block a day ──
+  function blockDay() {
+    const date = document.getElementById("blockDate").value;
+    if (!date) { showToast("⚠️ Please pick a date first."); return; }
+ 
+    const note = document.getElementById("blockNote").value.trim();
+ 
+    showConfirm(
+      "Block This Day?",
+      `Block <strong>${formatDisplay(date)}</strong> for reason: <strong>${selectedReason}</strong>?
+       ${note ? `<br><br>Note: "${note}"` : ""}
+       <br><br>Existing deliveries on this day will be marked cancelled.`,
+      () => {
+        blockedDays[date] = { reason: selectedReason, note };
+        save();
+        document.getElementById("blockDate").value = "";
+        document.getElementById("blockNote").value = "";
+        render();
+        showToast(`✅ ${formatDisplay(date)} blocked — ${selectedReason}`);
+      }
+    );
+  }
+ 
+  // ── Cancel / restore a single slot ──
+  function toggleCancelSlot(key, orderNum) {
+    if (cancelledSlots[key]) {
+      // Restore
+      showConfirm(
+        "Restore Delivery?",
+        `Restore delivery <strong>${orderNum || key}</strong> to Pending Approval?`,
+        () => {
+          delete cancelledSlots[key];
+          save();
+          render();
+          showToast("✅ Delivery restored.");
+        }
+      );
+    } else {
+      // Cancel
+      showConfirm(
+        "Cancel Delivery?",
+        `Cancel delivery <strong>${orderNum || key}</strong>? The slot will be marked cancelled.`,
+        () => {
+          cancelledSlots[key] = true;
+          save();
+          render();
+          showToast("🚫 Delivery cancelled.");
+        }
+      );
+    }
+  }
+ 
+  // ── Unblock a day ──
+  function unblockDay(date) {
+    showConfirm(
+      "Unblock This Day?",
+      `Remove the block on <strong>${formatDisplay(date)}</strong>? Deliveries will return to Pending Approval.`,
+      () => {
+        delete blockedDays[date];
+        save();
+        render();
+        showToast(`✅ ${formatDisplay(date)} unblocked.`);
+      }
+    );
+  }
+ 
+  // ── Render ──
+  function render() {
+    renderBlockedList();
+    renderDeliveryGrid();
+  }
+ 
+  function renderBlockedList() {
+    const list = document.getElementById("blockedList");
+    const keys = Object.keys(blockedDays).sort();
+    if (!keys.length) {
+      list.innerHTML = `<div class="empty-state">No days blocked yet.</div>`;
+      return;
+    }
+    list.innerHTML = keys.map(date => {
+      const { reason, note } = blockedDays[date];
+      return `
+        <div class="blocked-item">
+          <div class="info">
+            <div class="date-label">${formatDisplay(date)}</div>
+            <span class="reason-tag">${reason}</span>
+            ${note ? `<div class="note">${note}</div>` : ""}
+          </div>
+          <button class="unblock-btn" onclick="unblockDay('${date}')">Unblock</button>
+        </div>`;
+    }).join("");
+  }
+ 
+  function renderDeliveryGrid() {
+    const grid    = document.getElementById("deliveryGrid");
+    const dayNames= ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+    document.getElementById("weekLabel").textContent =
+      `${formatDisplay(fmt(currentMonday))} – ${formatDisplay(fmt(addDays(currentMonday,4)))}`;
+ 
+    grid.innerHTML = dayNames.map((name, i) => {
+      const date    = addDays(currentMonday, i);
+      const dateKey = fmt(date);
+      const isBlocked = !!blockedDays[dateKey];
+ 
+      const slots = Array.from({length:5},(_,s)=>{
+        const slot = s+1;
+        const key  = `${dateKey}-slot-${slot}`;
+        const d    = deliveries[key];
+        const isCancelledByAdmin = !!cancelledSlots[key];
+        const isCancelledByBlock = isBlocked && !!d;
+ 
+        let statusHtml, actionHtml;
+        if (!d) {
+          statusHtml = `<span class="status-badge status-empty">Empty</span>`;
+          actionHtml = `<span></span>`;
+        } else if (isCancelledByAdmin) {
+          statusHtml = `<span class="status-badge status-cancelled">Cancelled</span>`;
+          actionHtml = `<button class="cancel-slot-btn restore" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Restore</button>`;
+        } else if (isCancelledByBlock) {
+          statusHtml = `<span class="status-badge status-cancelled">Day Blocked</span>`;
+          actionHtml = `<span></span>`;
+        } else {
+          statusHtml = `<span class="status-badge status-pending">Pending</span>`;
+          actionHtml = `<button class="cancel-slot-btn" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Cancel</button>`;
+        }
+ 
+        return `
+          <div class="delivery-row">
+            <span class="slot-label">Slot ${slot}</span>
+            <div class="delivery-info">
+              ${d
+                ? `<div class="order">#${d.orderNumber||"—"}</div>
+                   <div class="sub">${d.onsiteContact||""} ${d.preferredTime ? "· "+d.preferredTime : ""}</div>`
+                : `<span class="empty-slot">No delivery</span>`}
+            </div>
+            ${statusHtml}
+            ${actionHtml}
+          </div>`;
+      }).join("");
+ 
+      return `
+        <div class="day-block ${isBlocked?"day-blocked":""}">
+          <div class="day-title ${isBlocked?"blocked-title":""}">
+            <span>${name}, ${formatDisplay(dateKey)}</span>
+            ${isBlocked
+              ? `<span class="blocked-badge">⛔ ${blockedDays[dateKey].reason}</span>`
+              : ""}
+          </div>
+          ${slots}
+        </div>`;
+    }).join("");
+  }
+ 
+  // ── Week nav ──
+  function changeWeek(dir) {
+    currentMonday = addDays(currentMonday, dir*7);
+    renderDeliveryGrid();
+  }
+ 
+  // ── Confirm modal ──
+  function showConfirm(title, msg, onConfirm) {
+    document.getElementById("modalTitle").textContent  = title;
+    document.getElementById("modalMessage").innerHTML  = msg;
+    document.getElementById("confirmModal").classList.remove("hidden");
+    pendingAction = onConfirm;
+  }
+  function closeModal() {
+    document.getElementById("confirmModal").classList.add("hidden");
+    pendingAction = null;
+  }
+  document.getElementById("modalConfirmBtn").addEventListener("click", () => {
+    if (pendingAction) pendingAction();
+    closeModal();
+  });
+ 
+  // ── Toast ──
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2800);
+  }
+ 
+  // ── Helpers ──
+  function save() {
+    localStorage.setItem(BLOCKED_KEY,    JSON.stringify(blockedDays));
+    localStorage.setItem(CANCELLED_KEY,  JSON.stringify(cancelledSlots));
+  }
+  function getMonday(d) {
+    const day = d.getDay();
+    const diff= d.getDate() - day + (day===0 ? -6 : 1);
+    return new Date(new Date(d).setDate(diff));
+  }
+  function addDays(d, n) {
+    const r = new Date(d);
+    r.setDate(r.getDate()+n);
+    return r;
+  }
+  function fmt(d) { return d.toISOString().split("T")[0]; }
+  function formatDisplay(dateStr) {
+    const [y,m,day] = dateStr.split("-").map(Number);
+    return new Date(y,m-1,day).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  }
+ 
+  // ── Init ──
+  render();
+</script>
+</body>
+</html>

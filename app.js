@@ -2,11 +2,18 @@ let currentMonday = getMonday(new Date());
 let selectedDate = "";
 let selectedSlot = "";
 
-let deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+let deliveries     = JSON.parse(localStorage.getItem("deliveries"))      || {};
+let blockedDays    = JSON.parse(localStorage.getItem("blockedDays"))     || {};
+let cancelledSlots = JSON.parse(localStorage.getItem("cancelledSlots"))  || {};
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 function renderCalendar() {
+  // Always re-read admin state so changes from admin panel are reflected
+  deliveries     = JSON.parse(localStorage.getItem("deliveries"))      || {};
+  blockedDays    = JSON.parse(localStorage.getItem("blockedDays"))     || {};
+  cancelledSlots = JSON.parse(localStorage.getItem("cancelledSlots"))  || {};
+
   const calendar = document.getElementById("calendar");
   calendar.innerHTML = "";
 
@@ -25,12 +32,29 @@ function renderCalendar() {
     const dayBox = document.createElement("div");
     dayBox.className = "day";
 
-    dayBox.innerHTML = `
-      <div class="day-header">
-        ${dayName}<br>
-        ${formatDisplayDate(date)}
-      </div>
-    `;
+    const isBlocked = !!blockedDays[dateKey];
+
+    if (isBlocked) {
+      const blockInfo = blockedDays[dateKey];
+      dayBox.style.opacity = "0.7";
+      dayBox.style.border = "2px solid #991b1b";
+      dayBox.innerHTML = `
+        <div class="day-header" style="background:#991b1b;">
+          ${dayName}<br>${formatDisplayDate(date)}
+        </div>
+        <div style="background:#fee2e2;color:#991b1b;text-align:center;padding:12px;border-radius:6px;font-weight:bold;margin-bottom:6px;">
+          ⛔ Day Blocked<br>
+          <span style="font-size:12px;font-weight:normal;">${blockInfo.reason}${blockInfo.note ? " — "+blockInfo.note : ""}</span>
+        </div>
+      `;
+    } else {
+      dayBox.innerHTML = `
+        <div class="day-header">
+          ${dayName}<br>
+          ${formatDisplayDate(date)}
+        </div>
+      `;
+    }
 
     for (let slot = 1; slot <= 5; slot++) {
       const key = `${dateKey}-slot-${slot}`;
@@ -40,16 +64,25 @@ function renderCalendar() {
       slotBox.className = "slot";
 
       if (delivery) {
+        const isCancelled = !!cancelledSlots[key] || isBlocked;
         slotBox.classList.add("filled");
+        if (isCancelled) slotBox.style.borderLeft = "5px solid #991b1b";
 
         slotBox.innerHTML = `
           <div class="slot-number">Slot ${slot}</div>
-          <div class="status pending">${delivery.status || "Pending Approval"}</div>
+          <div class="status ${isCancelled ? "" : "pending"}" style="${isCancelled ? "background:#fee2e2;color:#991b1b;" : ""}">
+            ${isCancelled ? "🚫 Cancelled" : "Pending Approval"}
+          </div>
           <div class="delivery-line"><strong>Order #:</strong> ${delivery.orderNumber || ""}</div>
           <div class="delivery-line"><strong>Phone:</strong> ${delivery.phoneNumber || ""}</div>
           <div class="delivery-line"><strong>Contact:</strong> ${delivery.onsiteContact || ""}</div>
           <div class="delivery-line"><strong>Time:</strong> ${delivery.preferredTime || ""}</div>
           <div class="delivery-line"><strong>Address:</strong> ${delivery.address || ""}</div>
+          <div class="delivery-line">
+            <strong>Notes:</strong>
+            ${(delivery.deliveryNotes || "").substring(0, 30)}
+            ${(delivery.deliveryNotes || "").length > 30 ? "..." : ""}
+          </div>
         `;
       } else {
         slotBox.innerHTML = `
@@ -91,6 +124,9 @@ function openPopup(dateKey, slot) {
   document.getElementById("address").value =
     delivery ? delivery.address || "" : "";
 
+  document.getElementById("deliveryNotes").value =
+    delivery ? delivery.deliveryNotes || "" : "";
+
   document.getElementById("popup").classList.remove("hidden");
 }
 
@@ -107,7 +143,7 @@ function saveDelivery() {
     onsiteContact: document.getElementById("onsiteContact").value,
     preferredTime: document.getElementById("preferredTime").value,
     address: document.getElementById("address").value,
-    status: "Pending Approval"
+    deliveryNotes: document.getElementById("deliveryNotes").value
   };
 
   localStorage.setItem("deliveries", JSON.stringify(deliveries));
@@ -118,6 +154,12 @@ function saveDelivery() {
 
 function deleteDelivery() {
   const key = `${selectedDate}-slot-${selectedSlot}`;
+
+  const confirmed = confirm("Are you sure you want to delete this delivery?");
+
+  if (!confirmed) {
+    return;
+  }
 
   delete deliveries[key];
 
@@ -151,6 +193,46 @@ function formatDisplayDate(date) {
   });
 }
 
+function searchOrder() {
+  const searchValue = document
+    .getElementById("searchOrder")
+    .value
+    .trim()
+    .toLowerCase();
+
+  if (!searchValue) {
+    return;
+  }
+
+  for (const key in deliveries) {
+    const delivery = deliveries[key];
+
+    if (
+      delivery.orderNumber &&
+      delivery.orderNumber.toLowerCase().includes(searchValue)
+    ) {
+      const dateKey = key.split("-slot-")[0];
+      const slot = key.split("-slot-")[1];
+
+      openPopup(dateKey, slot);
+
+      alert(
+        `Found Order ${delivery.orderNumber}\n\nDate: ${dateKey}\nSlot: ${slot}`
+      );
+
+      return;
+    }
+  }
+
+  alert("Order not found.");
+}
+
+function clearSearch() {
+  document.getElementById("searchOrder").value = "";
+}
+
 renderCalendar();
+
+//sales order number, onsuite contact, preffered time, address(optional), approval email after manager approves
 
 //sales order number, onsuite contact, preffered time, address(optional), approval email after manager approves

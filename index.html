@@ -15,6 +15,18 @@
     <button onclick="changeWeek(1)">Next Week</button>
   </div>
 
+    <div class="search-bar">
+  <input
+    type="text"
+    id="searchOrder"
+    placeholder="Search Order Number"
+  >
+
+  <button onclick="searchOrder()">Search</button>
+
+  <button onclick="clearSearch()">Clear</button>
+</div>
+    
   <div id="calendar"></div>
 
   <div id="popup" class="popup hidden">
@@ -40,6 +52,13 @@
 
       <label>Address (optional)</label>
       <textarea id="address"></textarea>
+        
+   <label>Delivery Notes</label>
+   <textarea id="deliveryNotes"></textarea>
+        
+    
+        
+    
 
       <div class="buttons">
         <button onclick="saveDelivery()">Save</button>
