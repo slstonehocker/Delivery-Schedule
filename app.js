@@ -9,10 +9,10 @@ let cancelledSlots = JSON.parse(localStorage.getItem("cancelledSlots"))  || {};
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 function renderCalendar() {
-  // Always re-read admin state so changes from admin panel are reflected
   deliveries     = JSON.parse(localStorage.getItem("deliveries"))      || {};
   blockedDays    = JSON.parse(localStorage.getItem("blockedDays"))     || {};
   cancelledSlots = JSON.parse(localStorage.getItem("cancelledSlots"))  || {};
+  const approvedSlots = JSON.parse(localStorage.getItem("approvedSlots")) || {};
 
   const calendar = document.getElementById("calendar");
   calendar.innerHTML = "";
@@ -65,13 +65,18 @@ function renderCalendar() {
 
       if (delivery) {
         const isCancelled = !!cancelledSlots[key] || isBlocked;
+        const isApproved  = !!approvedSlots[key];
         slotBox.classList.add("filled");
         if (isCancelled) slotBox.style.borderLeft = "5px solid #991b1b";
+        if (isApproved)  slotBox.style.borderLeft = "5px solid #166534";
 
         slotBox.innerHTML = `
           <div class="slot-number">Slot ${slot}</div>
-          <div class="status ${isCancelled ? "" : "pending"}" style="${isCancelled ? "background:#fee2e2;color:#991b1b;" : ""}">
-            ${isCancelled ? "🚫 Cancelled" : "Pending Approval"}
+          <div class="status ${isCancelled ? "" : isApproved ? "" : "pending"}" style="${
+            isCancelled ? "background:#fee2e2;color:#991b1b;" :
+            isApproved  ? "background:#dcfce7;color:#166534;" : ""
+          }">
+            ${isCancelled ? "🚫 Cancelled" : isApproved ? "✅ Approved" : "Pending Approval"}
           </div>
           <div class="delivery-line"><strong>Order #:</strong> ${delivery.orderNumber || ""}</div>
           <div class="delivery-line"><strong>Phone:</strong> ${delivery.phoneNumber || ""}</div>
@@ -136,20 +141,48 @@ function closePopup() {
 
 function saveDelivery() {
   const key = `${selectedDate}-slot-${selectedSlot}`;
+  const isNewDelivery = !deliveries[key];
 
   deliveries[key] = {
-    orderNumber: document.getElementById("orderNumber").value,
-    phoneNumber: document.getElementById("phoneNumber").value,
+    orderNumber:   document.getElementById("orderNumber").value,
+    phoneNumber:   document.getElementById("phoneNumber").value,
     onsiteContact: document.getElementById("onsiteContact").value,
     preferredTime: document.getElementById("preferredTime").value,
-    address: document.getElementById("address").value,
+    address:       document.getElementById("address").value,
     deliveryNotes: document.getElementById("deliveryNotes").value
   };
 
   localStorage.setItem("deliveries", JSON.stringify(deliveries));
 
+  // Send approval email only when a NEW delivery is added
+  if (isNewDelivery) {
+    sendApprovalEmail(selectedDate, selectedSlot, deliveries[key]);
+  }
+
   closePopup();
   renderCalendar();
+}
+
+async function sendApprovalEmail(dateKey, slot, delivery) {
+  try {
+    await emailjs.send(
+      "service_7alcqe6",
+      "template_q7tskkd",
+      {
+        dateKey:       dateKey,
+        slot:          slot,
+        orderNumber:   delivery.orderNumber   || "—",
+        onsiteContact: delivery.onsiteContact || "—",
+        phoneNumber:   delivery.phoneNumber   || "—",
+        preferredTime: delivery.preferredTime || "—",
+        address:       delivery.address       || "—",
+        deliveryNotes: delivery.deliveryNotes || "—"
+      }
+    );
+    console.log("Approval email sent for Order #" + delivery.orderNumber);
+  } catch (err) {
+    console.warn("Email failed to send:", err);
+  }
 }
 
 function deleteDelivery() {
@@ -232,7 +265,3 @@ function clearSearch() {
 }
 
 renderCalendar();
-
-//sales order number, onsuite contact, preffered time, address(optional), approval email after manager approves
-
-//sales order number, onsuite contact, preffered time, address(optional), approval email after manager approves

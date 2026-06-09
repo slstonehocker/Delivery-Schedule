@@ -279,7 +279,7 @@
     /* Delivery rows */
     .delivery-row {
       display: grid;
-      grid-template-columns: 70px 1fr 130px 110px;
+      grid-template-columns: 70px 1fr 130px 180px;
       align-items: center;
       padding: 8px 14px;
       border-top: 1px solid var(--border);
@@ -298,6 +298,31 @@
       text-align: center;
     }
     .status-pending { background: var(--maroon); color: white; }
+    .status-approved { background: var(--success-bg); color: var(--success); }
+    .approve-btn {
+      background: none;
+      border: 1px solid var(--success);
+      border-radius: 5px;
+      font-size: 12px;
+      padding: 4px 8px;
+      cursor: pointer;
+      color: var(--success);
+      transition: all .15s;
+      font-weight: bold;
+    }
+    .approve-btn:hover { background: var(--success-bg); }
+    .reject-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 12px;
+      padding: 4px 8px;
+      cursor: pointer;
+      color: #555;
+      transition: all .15s;
+    }
+    .reject-btn:hover { border-color: var(--danger); color: var(--danger); }
+    .action-btns { display: flex; gap: 5px; align-items: center; }
     .status-cancelled { background: var(--danger-bg); color: var(--danger); }
     .status-empty { background: #eee; color: #888; }
  
@@ -442,12 +467,14 @@
 <script>
   // ── Shared storage keys (same localStorage as main calendar) ──
   const DELIVERIES_KEY = "deliveries";
-  const BLOCKED_KEY    = "blockedDays";   // { "2025-06-10": { reason, note } }
-  const CANCELLED_KEY  = "cancelledSlots"; // Set of slot keys that admin cancelled
- 
-  let deliveries    = JSON.parse(localStorage.getItem(DELIVERIES_KEY))    || {};
-  let blockedDays   = JSON.parse(localStorage.getItem(BLOCKED_KEY))       || {};
-  let cancelledSlots= JSON.parse(localStorage.getItem(CANCELLED_KEY))     || {};
+  const BLOCKED_KEY    = "blockedDays";
+  const CANCELLED_KEY  = "cancelledSlots";
+  const APPROVED_KEY   = "approvedSlots";
+
+  let deliveries     = JSON.parse(localStorage.getItem(DELIVERIES_KEY))  || {};
+  let blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
+  let cancelledSlots = JSON.parse(localStorage.getItem(CANCELLED_KEY))   || {};
+  let approvedSlots  = JSON.parse(localStorage.getItem(APPROVED_KEY))    || {};
  
   let currentMonday = getMonday(new Date());
   let selectedReason = "Weather";
@@ -485,6 +512,36 @@
     );
   }
  
+  // ── Approve a slot ──
+  function approveSlot(key, orderNum) {
+    showConfirm(
+      "Approve Delivery?",
+      `Approve delivery <strong>${orderNum || key}</strong>? The status will update to Approved.`,
+      () => {
+        approvedSlots[key] = true;
+        delete cancelledSlots[key];
+        save();
+        render();
+        showToast("✅ Delivery approved.");
+      }
+    );
+  }
+
+  // ── Reject a slot ──
+  function rejectSlot(key, orderNum) {
+    showConfirm(
+      "Reject Delivery?",
+      `Reject delivery <strong>${orderNum || key}</strong>? The slot will be marked cancelled.`,
+      () => {
+        cancelledSlots[key] = true;
+        delete approvedSlots[key];
+        save();
+        render();
+        showToast("🚫 Delivery rejected.");
+      }
+    );
+  }
+
   // ── Cancel / restore a single slot ──
   function toggleCancelSlot(key, orderNum) {
     if (cancelledSlots[key]) {
@@ -572,7 +629,8 @@
         const d    = deliveries[key];
         const isCancelledByAdmin = !!cancelledSlots[key];
         const isCancelledByBlock = isBlocked && !!d;
- 
+        const isApproved         = !!approvedSlots[key];
+
         let statusHtml, actionHtml;
         if (!d) {
           statusHtml = `<span class="status-badge status-empty">Empty</span>`;
@@ -583,9 +641,15 @@
         } else if (isCancelledByBlock) {
           statusHtml = `<span class="status-badge status-cancelled">Day Blocked</span>`;
           actionHtml = `<span></span>`;
+        } else if (isApproved) {
+          statusHtml = `<span class="status-badge status-approved">✅ Approved</span>`;
+          actionHtml = `<div class="action-btns"><button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button></div>`;
         } else {
           statusHtml = `<span class="status-badge status-pending">Pending</span>`;
-          actionHtml = `<button class="cancel-slot-btn" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Cancel</button>`;
+          actionHtml = `<div class="action-btns">
+            <button class="approve-btn" onclick="approveSlot('${key}','${d.orderNumber||""}')">Approve</button>
+            <button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button>
+          </div>`;
         }
  
         return `
@@ -649,6 +713,7 @@
   function save() {
     localStorage.setItem(BLOCKED_KEY,    JSON.stringify(blockedDays));
     localStorage.setItem(CANCELLED_KEY,  JSON.stringify(cancelledSlots));
+    localStorage.setItem(APPROVED_KEY,   JSON.stringify(approvedSlots));
   }
   function getMonday(d) {
     const day = d.getDay();
