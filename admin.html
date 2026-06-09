@@ -393,8 +393,8 @@
 <body>
  
 <div class="header">
-  <a class="back-link" href="index.html">&#8592; Back to Calendar</a>
-  <h1>&#9881; Admin Panel</h1>
+  <a class="back-link" href="index.html">Back to Calendar</a>
+  <h1>Admin Panel</h1>
   <span class="badge">Admin Only</span>
 </div>
  
@@ -403,7 +403,7 @@
   <!-- LEFT: Block a day -->
   <div>
     <div class="card" style="margin-bottom:20px">
-      <div class="card-header">&#128683; Block a Day</div>
+      <div class="card-header">Block a Day</div>
       <div class="card-body">
         <div class="block-section">
           <label>Date to Block</label>
@@ -412,10 +412,10 @@
         <div class="block-section">
           <label>Reason</label>
           <div class="reason-pills" id="reasonPills">
-            <span class="pill active" data-reason="Weather">&#127783; Weather</span>
-            <span class="pill" data-reason="Holiday">&#127881; Holiday</span>
-            <span class="pill" data-reason="Staff Shortage">&#128119; Staff Shortage</span>
-            <span class="pill" data-reason="Equipment">&#128295; Equipment</span>
+            <span class="pill active" data-reason="Weather">Weather</span>
+            <span class="pill" data-reason="Holiday">Holiday</span>
+            <span class="pill" data-reason="Staff Shortage">Staff Shortage</span>
+            <span class="pill" data-reason="Equipment">Equipment</span>
             <span class="pill" data-reason="Other">Other</span>
           </div>
         </div>
@@ -429,7 +429,7 @@
  
     <!-- Blocked days list -->
     <div class="card">
-      <div class="card-header">&#128197; Blocked Days</div>
+      <div class="card-header">Blocked Days</div>
       <div class="card-body">
         <div class="blocked-list" id="blockedList"></div>
       </div>
@@ -438,11 +438,11 @@
  
   <!-- RIGHT: Weekly delivery management -->
   <div class="card">
-    <div class="card-header">&#128666; Manage Deliveries</div>
+    <div class="card-header">Manage Deliveries</div>
     <div class="week-nav">
-      <button onclick="changeWeek(-1)">&#8592; Prev</button>
+      <button onclick="changeWeek(-1)">Prev</button>
       <span class="week-label" id="weekLabel"></span>
-      <button onclick="changeWeek(1)">Next &#8594;</button>
+      <button onclick="changeWeek(1)">Next</button>
     </div>
     <div class="delivery-grid" id="deliveryGrid"></div>
   </div>
@@ -492,7 +492,7 @@
   // ── Block a day ──
   function blockDay() {
     const date = document.getElementById("blockDate").value;
-    if (!date) { showToast("⚠️ Please pick a date first."); return; }
+    if (!date) { showToast(" Please pick a date first."); return; }
  
     const note = document.getElementById("blockNote").value.trim();
  
@@ -507,7 +507,7 @@
         document.getElementById("blockDate").value = "";
         document.getElementById("blockNote").value = "";
         render();
-        showToast(`✅ ${formatDisplay(date)} blocked — ${selectedReason}`);
+        showToast(` ${formatDisplay(date)} blocked — ${selectedReason}`);
       }
     );
   }
@@ -522,7 +522,7 @@
         delete cancelledSlots[key];
         save();
         render();
-        showToast("✅ Delivery approved.");
+        showToast(" Delivery approved.");
       }
     );
   }
@@ -537,7 +537,7 @@
         delete approvedSlots[key];
         save();
         render();
-        showToast("🚫 Delivery rejected.");
+        showToast(" Delivery rejected.");
       }
     );
   }
@@ -553,7 +553,7 @@
           delete cancelledSlots[key];
           save();
           render();
-          showToast("✅ Delivery restored.");
+          showToast(" Delivery restored.");
         }
       );
     } else {
@@ -565,7 +565,7 @@
           cancelledSlots[key] = true;
           save();
           render();
-          showToast("🚫 Delivery cancelled.");
+          showToast(" Delivery cancelled.");
         }
       );
     }
@@ -580,7 +580,7 @@
         delete blockedDays[date];
         save();
         render();
-        showToast(`✅ ${formatDisplay(date)} unblocked.`);
+        showToast(` ${formatDisplay(date)} unblocked.`);
       }
     );
   }
@@ -642,7 +642,7 @@
           statusHtml = `<span class="status-badge status-cancelled">Day Blocked</span>`;
           actionHtml = `<span></span>`;
         } else if (isApproved) {
-          statusHtml = `<span class="status-badge status-approved">✅ Approved</span>`;
+          statusHtml = `<span class="status-badge status-approved"> Approved</span>`;
           actionHtml = `<div class="action-btns"><button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button></div>`;
         } else {
           statusHtml = `<span class="status-badge status-pending">Pending</span>`;
@@ -671,7 +671,7 @@
           <div class="day-title ${isBlocked?"blocked-title":""}">
             <span>${name}, ${formatDisplay(dateKey)}</span>
             ${isBlocked
-              ? `<span class="blocked-badge">⛔ ${blockedDays[dateKey].reason}</span>`
+              ? `<span class="blocked-badge"> ${blockedDays[dateKey].reason}</span>`
               : ""}
           </div>
           ${slots}
