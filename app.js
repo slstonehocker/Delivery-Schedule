@@ -164,11 +164,28 @@ function openPopup(dateKey, slot) {
     }
   });
 
-  // Show/hide Save and Delete buttons based on whether it's new or existing
-  const saveBtn   = document.querySelector(".buttons button:nth-child(1)");
-  const deleteBtn = document.querySelector(".buttons button:nth-child(2)");
+  // Show/hide Edit, Save and Delete buttons based on whether it's new or existing
+  const editBtn   = document.getElementById("editBtn");
+  const saveBtn   = document.getElementById("saveBtn");
+  const deleteBtn = document.getElementById("deleteBtn");
+  editBtn.style.display   = isExisting ? "" : "none";
   saveBtn.style.display   = isExisting ? "none" : "";
   deleteBtn.style.display = isExisting ? "none" : "";
+}
+
+function enableEdit() {
+  const fields = ["salespersonName", "salespersonEmail", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime", "address", "deliveryNotes"];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    el.removeAttribute("disabled");
+    el.style.background = "";
+    el.style.color = "";
+    el.style.cursor = "";
+  });
+
+  document.getElementById("editBtn").style.display   = "none";
+  document.getElementById("saveBtn").style.display   = "";
+  document.getElementById("deleteBtn").style.display = "";
 }
 
 function closePopup() {
