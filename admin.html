@@ -214,6 +214,46 @@
     }
  
     /* ── Right column: delivery management ── */
+    .admin-search-bar {
+      display: flex;
+      gap: 8px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-search-bar input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: Arial, sans-serif;
+    }
+    .admin-search-bar input:focus {
+      outline: none;
+      border-color: var(--maroon);
+    }
+    .admin-search-results {
+      padding: 0 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .admin-search-result {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--maroon);
+      border-radius: 6px;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      transition: all .15s;
+    }
+    .admin-search-result:hover {
+      background: var(--maroon-light);
+    }
+
     .week-nav {
       display: flex;
       align-items: center;
@@ -460,6 +500,12 @@
   <!-- RIGHT: Weekly delivery management -->
   <div class="card">
     <div class="card-header">Manage Deliveries</div>
+    <div class="admin-search-bar">
+      <input type="text" id="adminSearch" placeholder="Search by Order # or Salesperson Name">
+      <button class="btn btn-outline" style="width:auto;" onclick="searchDeliveries()">Search</button>
+      <button class="btn btn-outline" style="width:auto;" onclick="clearAdminSearch()">Clear</button>
+    </div>
+    <div id="adminSearchResults" class="hidden"></div>
     <div class="week-nav">
       <button onclick="changeWeek(-1)">Prev</button>
       <span class="week-label" id="weekLabel"></span>
@@ -467,7 +513,7 @@
     </div>
     <div class="delivery-grid" id="deliveryGrid"></div>
   </div>
- 
+
 </div>
  
 <!-- Confirm modal -->
@@ -599,13 +645,13 @@
   }
 
   // ── Reject a slot ──
-  function rejectSlot(key, orderNum) {
+  function rejectSlot(key, orderNum, deliverySnapshot) {
     showConfirm(
       "Reject Delivery?",
       `Reject delivery <strong>${orderNum || key}</strong>? The slot will be marked cancelled.`,
       () => {
         deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
-        const delivery = deliveries[key];
+        const delivery = deliveries[key] || deliverySnapshot;
 
         // Remove delivery from calendar entirely
         delete deliveries[key];
@@ -656,13 +702,13 @@
   }
 
   // ── Remove a slot entirely ──
-  function removeSlot(key, orderNum) {
+  function removeSlot(key, orderNum, deliverySnapshot) {
     showConfirm(
       "Remove Delivery?",
       `Permanently remove delivery <strong>${orderNum || key}</strong>? This cannot be undone.`,
       () => {
         deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
-        const delivery = deliveries[key];
+        const delivery = deliveries[key] || deliverySnapshot;
 
         delete deliveries[key];
         delete cancelledSlots[key];
@@ -738,7 +784,7 @@
     }
   }
  
-    // ── Restore a removed/rejected delivery back to the calendar ──
+  // ── Restore a removed/rejected delivery back to the calendar ──
   function restoreRemovedDelivery(key) {
     const entry = removedDeliveries[key];
     if (!entry) return;
@@ -767,8 +813,7 @@
       }
     );
   }
-  
-  
+
   // ── Unblock a day ──
   function unblockDay(date) {
     showConfirm(
@@ -811,7 +856,7 @@
       return;
     }
 
-        list.innerHTML = keys.map(key => {
+    list.innerHTML = keys.map(key => {
       const { delivery, reason } = removedDeliveries[key];
       const dateKey = key.split("-slot-")[0];
       const slot    = key.split("-slot-")[1];
@@ -875,23 +920,23 @@
           statusHtml = `<span class="status-badge status-cancelled">Cancelled</span>`;
           actionHtml = `<div class="action-btns">
             <button class="cancel-slot-btn restore" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Restore</button>
-            <button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button>
+            <button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button>
           </div>`;
         } else if (isCancelledByBlock) {
           statusHtml = `<span class="status-badge status-cancelled">Day Blocked</span>`;
-          actionHtml = `<div class="action-btns"><button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button></div>`;
+          actionHtml = `<div class="action-btns"><button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button></div>`;
         } else if (isApproved) {
           statusHtml = `<span class="status-badge status-approved"> Approved</span>`;
           actionHtml = `<div class="action-btns">
-            <button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button>
-            <button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button>
+            <button class="reject-btn" onclick='rejectSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Reject</button>
+            <button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button>
           </div>`;
         } else {
           statusHtml = `<span class="status-badge status-pending">Pending</span>`;
           actionHtml = `<div class="action-btns">
             <button class="approve-btn" onclick="approveSlot('${key}','${d.orderNumber||""}')">Approve</button>
-            <button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button>
-            <button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button>
+            <button class="reject-btn" onclick='rejectSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Reject</button>
+            <button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button>
           </div>`;
         }
  
@@ -989,6 +1034,54 @@
     localStorage.setItem(CANCELLED_KEY, JSON.stringify(cancelledSlots));
     localStorage.setItem(APPROVED_KEY,  JSON.stringify(approvedSlots));
 
+    renderDeliveryGrid();
+  }
+
+  // ── Search across all weeks ──
+  function searchDeliveries() {
+    const term = document.getElementById("adminSearch").value.trim().toLowerCase();
+    const resultsBox = document.getElementById("adminSearchResults");
+
+    if (!term) {
+      resultsBox.classList.add("hidden");
+      return;
+    }
+
+    const matches = Object.keys(deliveries)
+      .filter(key => {
+        const d = deliveries[key];
+        return (d.orderNumber || "").toLowerCase().includes(term) ||
+               (d.salespersonName || "").toLowerCase().includes(term);
+      })
+      .sort();
+
+    if (!matches.length) {
+      resultsBox.innerHTML = `<div class="admin-search-results"><div class="empty-state">No deliveries found.</div></div>`;
+      resultsBox.classList.remove("hidden");
+      return;
+    }
+
+    resultsBox.innerHTML = `<div class="admin-search-results">` + matches.map(key => {
+      const d = deliveries[key];
+      const dateKey = key.split("-slot-")[0];
+      const slot    = key.split("-slot-")[1];
+      return `
+        <div class="admin-search-result" onclick='jumpToDelivery("${dateKey}")'>
+          <span>${formatDisplay(dateKey)} — Slot ${slot} — Order #${d.orderNumber || "—"}</span>
+          <span>${d.salespersonName || "—"}</span>
+        </div>`;
+    }).join("") + `</div>`;
+    resultsBox.classList.remove("hidden");
+  }
+
+  function clearAdminSearch() {
+    document.getElementById("adminSearch").value = "";
+    document.getElementById("adminSearchResults").classList.add("hidden");
+  }
+
+  function jumpToDelivery(dateKey) {
+    const d = new Date(dateKey + "T12:00:00");
+    currentMonday = getMonday(d);
     renderDeliveryGrid();
   }
 
