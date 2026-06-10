@@ -447,6 +447,14 @@
         <div class="blocked-list" id="blockedList"></div>
       </div>
     </div>
+
+    <!-- Removed/Rejected deliveries -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">Removed / Rejected Deliveries</div>
+      <div class="card-body">
+        <div class="blocked-list" id="removedList"></div>
+      </div>
+    </div>
   </div>
  
   <!-- RIGHT: Weekly delivery management -->
@@ -494,11 +502,13 @@
   const BLOCKED_KEY    = "blockedDays";
   const CANCELLED_KEY  = "cancelledSlots";
   const APPROVED_KEY   = "approvedSlots";
+  const REMOVED_KEY    = "removedDeliveries";
 
   let deliveries     = JSON.parse(localStorage.getItem(DELIVERIES_KEY))  || {};
   let blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
   let cancelledSlots = JSON.parse(localStorage.getItem(CANCELLED_KEY))   || {};
   let approvedSlots  = JSON.parse(localStorage.getItem(APPROVED_KEY))    || {};
+  let removedDeliveries = JSON.parse(localStorage.getItem(REMOVED_KEY))  || {};
  
   let currentMonday = getMonday(new Date());
   let selectedReason = "Weather";
@@ -601,6 +611,10 @@
         delete deliveries[key];
         delete cancelledSlots[key];
         delete approvedSlots[key];
+        if (delivery) {
+          removedDeliveries[key] = { delivery, reason: "Rejected" };
+          localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
+        }
         localStorage.setItem("deliveries", JSON.stringify(deliveries));
         save();
         render();
@@ -653,6 +667,10 @@
         delete deliveries[key];
         delete cancelledSlots[key];
         delete approvedSlots[key];
+        if (delivery) {
+          removedDeliveries[key] = { delivery, reason: "Removed" };
+          localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
+        }
         localStorage.setItem("deliveries", JSON.stringify(deliveries));
         save();
         render();
@@ -737,7 +755,44 @@
   // ── Render ──
   function render() {
     renderBlockedList();
+    renderRemovedList();
     renderDeliveryGrid();
+  }
+
+  function renderRemovedList() {
+    const list  = document.getElementById("removedList");
+    const today = fmt(new Date());
+
+    // Drop entries whose delivery date has passed
+    let changed = false;
+    Object.keys(removedDeliveries).forEach(key => {
+      const dateKey = key.split("-slot-")[0];
+      if (dateKey < today) {
+        delete removedDeliveries[key];
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
+
+    const keys = Object.keys(removedDeliveries).sort();
+    if (!keys.length) {
+      list.innerHTML = `<div class="empty-state">No removed or rejected deliveries.</div>`;
+      return;
+    }
+
+    list.innerHTML = keys.map(key => {
+      const { delivery, reason } = removedDeliveries[key];
+      const dateKey = key.split("-slot-")[0];
+      const slot    = key.split("-slot-")[1];
+      return `
+        <div class="blocked-item">
+          <div class="info">
+            <div class="date-label">${formatDisplay(dateKey)} — Slot ${slot}</div>
+            <span class="reason-tag">${reason}</span>
+            <div class="note">Order #${delivery.orderNumber || "—"} · ${delivery.salespersonName || "—"}</div>
+          </div>
+        </div>`;
+    }).join("");
   }
  
   function renderBlockedList() {
@@ -990,6 +1045,7 @@
     blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
     cancelledSlots = JSON.parse(localStorage.getItem(CANCELLED_KEY))   || {};
     approvedSlots  = JSON.parse(localStorage.getItem(APPROVED_KEY))    || {};
+    removedDeliveries = JSON.parse(localStorage.getItem(REMOVED_KEY)) || {};
     render();
   }
 
