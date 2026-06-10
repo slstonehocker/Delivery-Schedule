@@ -322,6 +322,17 @@
       transition: all .15s;
     }
     .reject-btn:hover { border-color: var(--danger); color: var(--danger); }
+    .remove-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 12px;
+      padding: 4px 8px;
+      cursor: pointer;
+      color: #555;
+      transition: all .15s;
+    }
+    .remove-btn:hover { border-color: #991b1b; color: #991b1b; background: #fee2e2; }
     .action-btns { display: flex; gap: 5px; align-items: center; }
     .status-cancelled { background: var(--danger-bg); color: var(--danger); }
     .status-empty { background: #eee; color: #888; }
@@ -415,8 +426,8 @@
             <span class="pill active" data-reason="Weather">Weather</span>
             <span class="pill" data-reason="Holiday">Holiday</span>
             <span class="pill" data-reason="Staff Shortage">Staff Shortage</span>
-            <span class="pill" data-reason="Equipment">Equipment</span>
-            <span class="pill" data-reason="Other">Other</span>
+            <span class="pill" data-reason="Barbeque">Barbeque </span>
+            <span class="pill" data-reason="other">Other</span>
           </div>
         </div>
         <div class="block-section">
@@ -518,11 +529,48 @@
       "Approve Delivery?",
       `Approve delivery <strong>${orderNum || key}</strong>? The status will update to Approved.`,
       () => {
+        // Re-read deliveries fresh from localStorage
+        deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+
         approvedSlots[key] = true;
         delete cancelledSlots[key];
         save();
         render();
-        showToast(" Delivery approved.");
+        showToast("Delivery approved.");
+
+        // Send confirmation email to salesperson
+        const delivery = deliveries[key];
+        if (delivery && delivery.salespersonEmail) {
+          const dateKey = key.split("-slot-")[0];
+          const slot    = key.split("-slot-")[1];
+          const [y, m, d] = dateKey.split("-").map(Number);
+          const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
+            weekday: "long", month: "long", day: "numeric", year: "numeric"
+          });
+
+          emailjs.send(
+            "service_7alcqe6",
+            "template_b71mbas",
+            {
+              salespersonName:  delivery.salespersonName  || "Salesperson",
+              salespersonEmail: delivery.salespersonEmail,
+              message:          "Great news! Your delivery request has been approved.",
+              orderNumber:      delivery.orderNumber      || "—",
+              dateKey:          displayDate,
+              slot:             slot,
+              onsiteContact:    delivery.onsiteContact    || "—",
+              phoneNumber:      delivery.phoneNumber      || "—",
+              preferredTime:    delivery.preferredTime    || "—",
+              address:          delivery.address          || "—",
+              deliveryNotes:    delivery.deliveryNotes    || "—"
+            }
+          ).then(() => {
+            showToast("Confirmation email sent to " + delivery.salespersonName + ".");
+          }).catch(err => {
+            console.warn("Failed to send confirmation email:", err);
+            showToast("Approved but confirmation email failed to send.");
+          });
+        }
       }
     );
   }
@@ -533,11 +581,99 @@
       "Reject Delivery?",
       `Reject delivery <strong>${orderNum || key}</strong>? The slot will be marked cancelled.`,
       () => {
-        cancelledSlots[key] = true;
+        deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+        const delivery = deliveries[key];
+
+        // Remove delivery from calendar entirely
+        delete deliveries[key];
+        delete cancelledSlots[key];
         delete approvedSlots[key];
+        localStorage.setItem("deliveries", JSON.stringify(deliveries));
         save();
         render();
-        showToast(" Delivery rejected.");
+        showToast("Delivery rejected and removed.");
+
+        // Send rejection email to salesperson
+        if (delivery && delivery.salespersonEmail) {
+          const dateKey = key.split("-slot-")[0];
+          const slot    = key.split("-slot-")[1];
+          const [y, m, d] = dateKey.split("-").map(Number);
+          const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
+            weekday: "long", month: "long", day: "numeric", year: "numeric"
+          });
+
+          emailjs.send(
+            "service_7alcqe6",
+            "template_b71mbas",
+            {
+              salespersonName:  delivery.salespersonName  || "Salesperson",
+              salespersonEmail: delivery.salespersonEmail,
+              message:          "Unfortunately your delivery request has been rejected. Please contact your manager for more information.",
+              orderNumber:      delivery.orderNumber      || "—",
+              dateKey:          displayDate,
+              slot:             slot,
+              onsiteContact:    delivery.onsiteContact    || "—",
+              phoneNumber:      delivery.phoneNumber      || "—",
+              preferredTime:    delivery.preferredTime    || "—",
+              address:          delivery.address          || "—",
+              deliveryNotes:    delivery.deliveryNotes    || "—"
+            }
+          ).then(() => {
+            showToast("Rejection email sent to " + delivery.salespersonName + ".");
+          }).catch(err => {
+            console.warn("Failed to send rejection email:", err);
+          });
+        }
+      }
+    );
+  }
+
+  // ── Remove a slot entirely ──
+  function removeSlot(key, orderNum) {
+    showConfirm(
+      "Remove Delivery?",
+      `Permanently remove delivery <strong>${orderNum || key}</strong>? This cannot be undone.`,
+      () => {
+        deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+        const delivery = deliveries[key];
+
+        delete deliveries[key];
+        delete cancelledSlots[key];
+        delete approvedSlots[key];
+        localStorage.setItem("deliveries", JSON.stringify(deliveries));
+        save();
+        render();
+        showToast("Delivery removed.");
+
+        // Send removal email to salesperson
+        if (delivery && delivery.salespersonEmail) {
+          const dateKey = key.split("-slot-")[0];
+          const slot    = key.split("-slot-")[1];
+          const [y, m, d] = dateKey.split("-").map(Number);
+          const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
+            weekday: "long", month: "long", day: "numeric", year: "numeric"
+          });
+
+          emailjs.send(
+            "service_7alcqe6",
+            "template_b71mbas",
+            {
+              salespersonName:  delivery.salespersonName  || "Salesperson",
+              salespersonEmail: delivery.salespersonEmail,
+              message:          "Your delivery has been removed by the manager. Please contact your manager for more information.",
+              orderNumber:      delivery.orderNumber      || "—",
+              dateKey:          displayDate,
+              slot:             slot,
+              onsiteContact:    delivery.onsiteContact    || "—",
+              phoneNumber:      delivery.phoneNumber      || "—",
+              preferredTime:    delivery.preferredTime    || "—",
+              address:          delivery.address          || "—",
+              deliveryNotes:    delivery.deliveryNotes    || "—"
+            }
+          ).then(() => {
+            showToast("Removal email sent to " + delivery.salespersonName + ".");
+          }).catch(err => console.warn("Failed to send removal email:", err));
+        }
       }
     );
   }
@@ -637,18 +773,25 @@
           actionHtml = `<span></span>`;
         } else if (isCancelledByAdmin) {
           statusHtml = `<span class="status-badge status-cancelled">Cancelled</span>`;
-          actionHtml = `<button class="cancel-slot-btn restore" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Restore</button>`;
+          actionHtml = `<div class="action-btns">
+            <button class="cancel-slot-btn restore" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Restore</button>
+            <button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button>
+          </div>`;
         } else if (isCancelledByBlock) {
           statusHtml = `<span class="status-badge status-cancelled">Day Blocked</span>`;
-          actionHtml = `<span></span>`;
+          actionHtml = `<div class="action-btns"><button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button></div>`;
         } else if (isApproved) {
           statusHtml = `<span class="status-badge status-approved"> Approved</span>`;
-          actionHtml = `<div class="action-btns"><button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button></div>`;
+          actionHtml = `<div class="action-btns">
+            <button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button>
+            <button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button>
+          </div>`;
         } else {
           statusHtml = `<span class="status-badge status-pending">Pending</span>`;
           actionHtml = `<div class="action-btns">
             <button class="approve-btn" onclick="approveSlot('${key}','${d.orderNumber||""}')">Approve</button>
             <button class="reject-btn" onclick="rejectSlot('${key}','${d.orderNumber||""}')">Reject</button>
+            <button class="remove-btn" onclick="removeSlot('${key}','${d.orderNumber||""}')">Remove</button>
           </div>`;
         }
  
@@ -740,5 +883,7 @@
   }
   render();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>emailjs.init("G01hd-w3QqqqF_QWl");</script>
 </body>
 </html>

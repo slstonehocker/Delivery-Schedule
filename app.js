@@ -119,6 +119,12 @@ function openPopup(dateKey, slot) {
   document.getElementById("popupTitle").textContent =
     `Delivery for ${selectedDate} - Slot ${selectedSlot}`;
 
+  document.getElementById("salespersonName").value =
+    delivery ? delivery.salespersonName || "" : "";
+
+  document.getElementById("salespersonEmail").value =
+    delivery ? delivery.salespersonEmail || "" : "";
+
   document.getElementById("orderNumber").value =
     delivery ? delivery.orderNumber || "" : "";
 
@@ -129,7 +135,7 @@ function openPopup(dateKey, slot) {
     delivery ? delivery.onsiteContact || "" : "";
 
   document.getElementById("preferredTime").value =
-    delivery ? delivery.preferredTime || "Early Morning" : "Early Morning";
+    delivery ? delivery.preferredTime || "" : "";
 
   document.getElementById("address").value =
     delivery ? delivery.address || "" : "";
@@ -148,7 +154,16 @@ function saveDelivery() {
   const key = `${selectedDate}-slot-${selectedSlot}`;
   const isNewDelivery = !deliveries[key];
 
+  // Validate order number format: S + exactly 7 digits
+  const orderVal = document.getElementById("orderNumber").value.trim();
+  if (orderVal && !/^S\d{7}$/.test(orderVal)) {
+    alert("Order number must start with S followed by exactly 7 digits (e.g. S1234567)");
+    return;
+  }
+
   deliveries[key] = {
+    salespersonName:  document.getElementById("salespersonName").value,
+    salespersonEmail: document.getElementById("salespersonEmail").value,
     orderNumber:   document.getElementById("orderNumber").value,
     phoneNumber:   document.getElementById("phoneNumber").value,
     onsiteContact: document.getElementById("onsiteContact").value,
@@ -158,6 +173,14 @@ function saveDelivery() {
   };
 
   localStorage.setItem("deliveries", JSON.stringify(deliveries));
+
+  // Clear any leftover cancelled/approved status for this slot
+  const cancelledSlots = JSON.parse(localStorage.getItem("cancelledSlots")) || {};
+  const approvedSlots  = JSON.parse(localStorage.getItem("approvedSlots"))  || {};
+  delete cancelledSlots[key];
+  delete approvedSlots[key];
+  localStorage.setItem("cancelledSlots", JSON.stringify(cancelledSlots));
+  localStorage.setItem("approvedSlots",  JSON.stringify(approvedSlots));
 
   // Send approval email only when a NEW delivery is added
   if (isNewDelivery) {
@@ -175,15 +198,17 @@ async function sendApprovalEmail(dateKey, slot, delivery) {
       "service_7alcqe6",
       "template_q7tskkd",
       {
-        dateKey:       dateKey,
-        slot:          slot,
-        orderNumber:   delivery.orderNumber   || "—",
-        onsiteContact: delivery.onsiteContact || "—",
-        phoneNumber:   delivery.phoneNumber   || "—",
-        preferredTime: delivery.preferredTime || "—",
-        address:       delivery.address       || "—",
-        deliveryNotes: delivery.deliveryNotes || "—",
-        adminLink:     adminLink
+        dateKey:          dateKey,
+        slot:             slot,
+        orderNumber:      delivery.orderNumber      || "—",
+        onsiteContact:    delivery.onsiteContact    || "—",
+        phoneNumber:      delivery.phoneNumber      || "—",
+        preferredTime:    delivery.preferredTime    || "—",
+        address:          delivery.address          || "—",
+        deliveryNotes:    delivery.deliveryNotes    || "—",
+        salespersonName:  delivery.salespersonName  || "—",
+        salespersonEmail: delivery.salespersonEmail || "—",
+        adminLink:        adminLink
       }
     );
     console.log("Approval email sent for Order #" + delivery.orderNumber);
@@ -201,9 +226,39 @@ function deleteDelivery() {
     return;
   }
 
+  const delivery = deliveries[key];
+
   delete deliveries[key];
 
   localStorage.setItem("deliveries", JSON.stringify(deliveries));
+
+  // Send deletion email to salesperson
+  if (delivery && delivery.salespersonEmail) {
+    const dateKey = key.split("-slot-")[0];
+    const slot    = key.split("-slot-")[1];
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric", year: "numeric"
+    });
+
+    emailjs.send(
+      "service_7alcqe6",
+      "template_b71mbas",
+      {
+        salespersonName:  delivery.salespersonName  || "Salesperson",
+        salespersonEmail: delivery.salespersonEmail,
+        message:          "Your delivery request has been deleted. Please contact your manager for more information.",
+        orderNumber:      delivery.orderNumber      || "—",
+        dateKey:          displayDate,
+        slot:             slot,
+        onsiteContact:    delivery.onsiteContact    || "—",
+        phoneNumber:      delivery.phoneNumber      || "—",
+        preferredTime:    delivery.preferredTime    || "—",
+        address:          delivery.address          || "—",
+        deliveryNotes:    delivery.deliveryNotes    || "—"
+      }
+    ).catch(err => console.warn("Failed to send deletion email:", err));
+  }
 
   closePopup();
   renderCalendar();
@@ -246,6 +301,8 @@ function searchOrder() {
 
   for (const key in deliveries) {
     const delivery = deliveries[key];
+
+    if (!delivery) continue;
 
     if (
       delivery.orderNumber &&
@@ -306,4 +363,29 @@ function clearSearch() {
   document.getElementById("searchOrder").value = "";
 }
 
+// Auto-prefix order number with S and allow only digits after
+document.getElementById("orderNumber").addEventListener("input", function () {
+  let val = this.value.toUpperCase();
+
+  // Always ensure it starts with S
+  if (!val.startsWith("S")) {
+    val = "S" + val.replace(/[^0-9]/g, "");
+  } else {
+    // Keep S and only digits after it
+    val = "S" + val.slice(1).replace(/[^0-9]/g, "");
+  }
+
+  // Max 8 characters (S + 7 digits)
+  if (val.length > 8) val = val.slice(0, 8);
+
+  this.value = val;
+});
+
 renderCalendar();
+
+// Auto-refresh every 5 seconds, but only when popup is closed
+setInterval(() => {
+  if (document.getElementById("popup").classList.contains("hidden")) {
+    renderCalendar();
+  }
+}, 5000);

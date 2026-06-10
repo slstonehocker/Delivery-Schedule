@@ -12,7 +12,7 @@
     <button onclick="changeWeek(-1)">Previous Week</button>
     <h2 id="weekTitle"></h2>
     <button onclick="changeWeek(1)">Next Week</button>
-    <button onclick="goToToday()" id="todayBtn">Jump to Today</button>
+    <button onclick="goToToday()" id="todayBtn">Today</button>
   </div>
 
     <div class="search-bar">
@@ -33,17 +33,25 @@
     <div class="popup-box">
       <h2 id="popupTitle">Add Delivery</h2>
 
+      <label>Salesperson Name</label>
+      <input id="salespersonName" type="text">
+        
+      <label>Salesperson Email</label>
+      <input id="salespersonEmail" type="text">
+
       <label>Order Number</label>
-      <input id="orderNumber" type="text">
+      <input id="orderNumber" type="text" placeholder="S0000000" maxlength="8">
 
       <label>Onsite Contact</label>
       <input id="onsiteContact" type="text">
         
-        <label>Phone Number</label>
+      <label>Phone Number</label>
       <input id="phoneNumber" type="text">
-
+        
+        
       <label>Preferred Time</label>
       <select id="preferredTime">
+        <option value="" disabled selected>Please select a preferred time</option>
         <option value="Early Morning">Early Morning</option>
         <option value="Late Morning">Late Morning</option>
         <option value="Early Afternoon">Early Afternoon</option>
@@ -55,10 +63,6 @@
         
    <label>Delivery Notes</label>
    <textarea id="deliveryNotes"></textarea>
-        
-    
-        
-    
 
       <div class="buttons">
         <button onclick="saveDelivery()">Save</button>
