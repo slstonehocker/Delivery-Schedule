@@ -199,6 +199,13 @@ function saveDelivery() {
   const key = `${selectedDate}-slot-${selectedSlot}`;
   const isNewDelivery = !deliveries[key];
 
+  // Prevent saving deliveries on days that have already passed
+  const today = formatDate(new Date());
+  if (isNewDelivery && selectedDate < today) {
+    alert("This day has already passed. You cannot save a delivery for a past date.");
+    return;
+  }
+
   // Require all fields except address and delivery notes
   const requiredFields = ["salespersonName", "salespersonEmail", "salespersonEmailConfirm", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime"];
   for (const id of requiredFields) {
