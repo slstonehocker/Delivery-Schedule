@@ -738,6 +738,37 @@
     }
   }
  
+    // ── Restore a removed/rejected delivery back to the calendar ──
+  function restoreRemovedDelivery(key) {
+    const entry = removedDeliveries[key];
+    if (!entry) return;
+
+    deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+
+    if (deliveries[key]) {
+      showToast("That slot is now occupied — can't add back.");
+      return;
+    }
+
+    showConfirm(
+      "Add Back to Calendar?",
+      `Restore <strong>Order #${entry.delivery.orderNumber || "—"}</strong> to its original slot as a pending delivery?`,
+      () => {
+        deliveries[key] = entry.delivery;
+        delete cancelledSlots[key];
+        delete approvedSlots[key];
+        delete removedDeliveries[key];
+
+        localStorage.setItem("deliveries", JSON.stringify(deliveries));
+        localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
+        save();
+        render();
+        showToast("Delivery added back to calendar.");
+      }
+    );
+  }
+  
+  
   // ── Unblock a day ──
   function unblockDay(date) {
     showConfirm(
@@ -780,7 +811,7 @@
       return;
     }
 
-    list.innerHTML = keys.map(key => {
+        list.innerHTML = keys.map(key => {
       const { delivery, reason } = removedDeliveries[key];
       const dateKey = key.split("-slot-")[0];
       const slot    = key.split("-slot-")[1];
@@ -791,6 +822,7 @@
             <span class="reason-tag">${reason}</span>
             <div class="note">Order #${delivery.orderNumber || "—"} · ${delivery.salespersonName || "—"}</div>
           </div>
+          <button class="unblock-btn" onclick='restoreRemovedDelivery("${key}")'>Add Back</button>
         </div>`;
     }).join("");
   }
