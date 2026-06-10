@@ -421,6 +421,7 @@ function clearSearch() {
 }
 
 // Auto-prefix order number with S and allow only digits after
+// Auto-prefix order number with S and allow only digits after
 document.getElementById("orderNumber").addEventListener("input", function () {
   if (this.disabled) return;
   let val = this.value.toUpperCase();
@@ -434,11 +435,13 @@ document.getElementById("orderNumber").addEventListener("input", function () {
   }
 
   // Max 8 characters (S + 7 digits)
-  if (val.length > 8) val = val.slice(0, 8);
+  if (val.length > 8) {
+    val = val.slice(0, 8);
+    alert("Order number exceeds the limit: must be S followed by exactly 7 digits (e.g. S1234567)");
+  }
 
   this.value = val;
 });
-
 renderCalendar();
 
 // Auto-refresh every 5 seconds, but only when popup is closed
@@ -447,3 +450,11 @@ setInterval(() => {
     renderCalendar();
   }
 }, 5000);
+
+// Instantly refresh if data changes in another tab
+window.addEventListener("storage", () => {
+  if (document.getElementById("popup").classList.contains("hidden")) {
+    renderCalendar();
+  }
+});
+
