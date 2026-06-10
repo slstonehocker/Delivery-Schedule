@@ -882,6 +882,21 @@
     currentMonday = getMonday(d);
   }
   render();
+  
+    // ── Auto-refresh ──
+  function reloadData() {
+    deliveries     = JSON.parse(localStorage.getItem(DELIVERIES_KEY))  || {};
+    blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
+    cancelledSlots = JSON.parse(localStorage.getItem(CANCELLED_KEY))   || {};
+    approvedSlots  = JSON.parse(localStorage.getItem(APPROVED_KEY))    || {};
+    render();
+  }
+
+  // Auto-refresh every 5 seconds
+  setInterval(reloadData, 5000);
+
+  // Instantly refresh if data changes in another tab
+  window.addEventListener("storage", reloadData);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>emailjs.init("G01hd-w3QqqqF_QWl");</script>
