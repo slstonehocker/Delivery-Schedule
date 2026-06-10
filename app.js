@@ -453,6 +453,51 @@ function clearSearch() {
   document.getElementById("searchOrder").value = "";
 }
 
+function showMyDeliveries() {
+  const email = document.getElementById("myDeliveriesEmail").value.trim().toLowerCase();
+  const resultsBox = document.getElementById("myDeliveriesResults");
+
+  if (!email) {
+    resultsBox.classList.add("hidden");
+    return;
+  }
+
+  const matches = Object.keys(deliveries)
+    .filter(key => (deliveries[key].salespersonEmail || "").toLowerCase() === email)
+    .sort();
+
+  if (!matches.length) {
+    resultsBox.innerHTML = `<h3>My Deliveries</h3><div>No deliveries found for this email.</div>`;
+    resultsBox.classList.remove("hidden");
+    return;
+  }
+
+  resultsBox.innerHTML = `<h3>My Deliveries</h3>` + matches.map(key => {
+    const delivery = deliveries[key];
+    const dateKey = key.split("-slot-")[0];
+    const slot    = key.split("-slot-")[1];
+    const displayDate = formatDisplayDate(new Date(dateKey + "T12:00:00"));
+    return `
+      <div class="my-delivery-item" onclick="goToDelivery('${dateKey}', ${slot})">
+        <span>${displayDate} — Slot ${slot} — Order #${delivery.orderNumber || "—"}</span>
+        <span>${delivery.preferredTime || ""}</span>
+      </div>
+    `;
+  }).join("");
+
+  resultsBox.classList.remove("hidden");
+}
+
+function goToDelivery(dateKey, slot) {
+  const deliveryDate = new Date(dateKey + "T12:00:00");
+  currentMonday = getMonday(deliveryDate);
+  renderCalendar();
+
+  setTimeout(() => {
+    openPopup(dateKey, slot);
+  }, 50);
+}
+
 // Auto-prefix order number with S and allow only digits after
 document.getElementById("orderNumber").addEventListener("input", function () {
   if (this.disabled) return;

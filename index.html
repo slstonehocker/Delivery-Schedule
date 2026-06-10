@@ -26,8 +26,22 @@
 
   <button onclick="clearSearch()">Clear</button>
 </div>
-    
+
+    <div class="search-bar my-deliveries-bar">
+  <input
+    type="text"
+    id="myDeliveriesEmail"
+    placeholder="Enter email to see your deliveries"
+  >
+
+  <button onclick="showMyDeliveries()">My Deliveries</button>
+</div>
+
+  
+  <div id="myDeliveriesResults" class="my-deliveries hidden"></div>
+
   <div id="calendar"></div>
+    
 
   <div id="popup" class="popup hidden">
     <div class="popup-box">

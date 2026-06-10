@@ -234,3 +234,34 @@ button:hover {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
+.my-deliveries {
+  max-width: 700px;
+  margin: 0 auto 20px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.my-deliveries h3 {
+  margin-top: 0;
+  color: var(--maroon);
+}
+
+.my-delivery-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.my-delivery-item:last-child {
+  border-bottom: none;
+}
+
+.my-delivery-item:hover {
+  color: var(--maroon);
+}
