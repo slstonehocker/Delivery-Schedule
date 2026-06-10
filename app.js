@@ -54,6 +54,13 @@ function renderCalendar() {
           ${formatDisplayDate(date)}
         </div>
       `;
+
+      const hasDeliveries = [1,2,3,4,5].some(slot => !!deliveries[`${dateKey}-slot-${slot}`]);
+      if (!hasDeliveries) {
+        dayBox.innerHTML += `
+          <div class="empty-day">No deliveries scheduled for this day yet.</div>
+        `;
+      }
     }
 
     for (let slot = 1; slot <= 5; slot++) {
