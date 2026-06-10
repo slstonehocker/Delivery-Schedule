@@ -287,6 +287,8 @@
       font-size: 13px;
     }
     .delivery-row:hover { background: #fafafa; }
+    .delivery-row[draggable="true"] { cursor: grab; }
+    .delivery-row.drag-over { background: #fef3c7; outline: 2px dashed var(--maroon); }
     .slot-label { font-weight: bold; color: #555; }
     .delivery-info .order { font-weight: bold; color: #111; }
     .delivery-info .sub { color: #777; font-size: 12px; margin-top: 1px; }
@@ -468,6 +470,17 @@
     <div class="modal-btns">
       <button class="modal-cancel-btn" onclick="closeModal()">Go Back</button>
       <button class="modal-confirm" id="modalConfirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delivery details modal -->
+<div class="modal-overlay hidden" id="detailsModal">
+  <div class="modal-box">
+    <h3>Delivery Details</h3>
+    <div id="detailsContent"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel-btn" onclick="closeDetailsModal()">Close</button>
     </div>
   </div>
 </div>
@@ -796,9 +809,16 @@
         }
  
         return `
-          <div class="delivery-row">
+          <div class="delivery-row"
+               data-key="${key}"
+               draggable="${d ? "true" : "false"}"
+               ondragstart="dragStart(event)"
+               ondragover="dragOver(event)"
+               ondragleave="dragLeave(event)"
+               ondrop="dragDrop(event)"
+               ondragend="dragEnd(event)">
             <span class="slot-label">Slot ${slot}</span>
-            <div class="delivery-info">
+            <div class="delivery-info" ${d ? `style="cursor:pointer;" onclick='showDeliveryDetails(${JSON.stringify(d)})'` : ""}>
               ${d
                 ? `<div class="order">#${d.orderNumber||"—"}</div>
                    <div class="sub">${d.onsiteContact||""} ${d.preferredTime ? "· "+d.preferredTime : ""}</div>`
@@ -822,12 +842,93 @@
     }).join("");
   }
  
+  // ── Drag and drop to move deliveries ──
+  function dragStart(e) {
+    const row = e.currentTarget;
+    if (row.getAttribute("draggable") !== "true") {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData("text/plain", row.dataset.key);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function dragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add("drag-over");
+  }
+
+  function dragLeave(e) {
+    e.currentTarget.classList.remove("drag-over");
+  }
+
+  function dragEnd(e) {
+    document.querySelectorAll(".delivery-row.drag-over").forEach(el => el.classList.remove("drag-over"));
+  }
+
+  function dragDrop(e) {
+    e.preventDefault();
+    const row = e.currentTarget;
+    row.classList.remove("drag-over");
+
+    const fromKey = e.dataTransfer.getData("text/plain");
+    const toKey   = row.dataset.key;
+    if (!fromKey || fromKey === toKey) return;
+
+    const fromDelivery = deliveries[fromKey];
+    if (!fromDelivery) return;
+
+    if (deliveries[toKey] && !confirm("This slot already has a delivery. Swap them?")) return;
+
+    const toDelivery       = deliveries[toKey];
+    const fromCancelled    = cancelledSlots[fromKey];
+    const fromApproved     = approvedSlots[fromKey];
+    const toCancelled      = cancelledSlots[toKey];
+    const toApproved       = approvedSlots[toKey];
+
+    if (toDelivery) {
+      deliveries[fromKey] = toDelivery;
+    } else {
+      delete deliveries[fromKey];
+    }
+    deliveries[toKey] = fromDelivery;
+
+    if (fromCancelled) cancelledSlots[toKey] = true; else delete cancelledSlots[toKey];
+    if (toCancelled)   cancelledSlots[fromKey] = true; else delete cancelledSlots[fromKey];
+    if (fromApproved)  approvedSlots[toKey] = true; else delete approvedSlots[toKey];
+    if (toApproved)    approvedSlots[fromKey] = true; else delete approvedSlots[fromKey];
+
+    localStorage.setItem("deliveries", JSON.stringify(deliveries));
+    localStorage.setItem(CANCELLED_KEY, JSON.stringify(cancelledSlots));
+    localStorage.setItem(APPROVED_KEY,  JSON.stringify(approvedSlots));
+
+    renderDeliveryGrid();
+  }
+
   // ── Week nav ──
   function changeWeek(dir) {
     currentMonday = addDays(currentMonday, dir*7);
     renderDeliveryGrid();
   }
  
+  // ── Delivery details modal ──
+  function showDeliveryDetails(d) {
+    document.getElementById("detailsContent").innerHTML = `
+      <p><strong>Order #:</strong> ${d.orderNumber || "—"}</p>
+      <p><strong>Salesperson:</strong> ${d.salespersonName || "—"}</p>
+      <p><strong>Salesperson Email:</strong> ${d.salespersonEmail || "—"}</p>
+      <p><strong>Onsite Contact:</strong> ${d.onsiteContact || "—"}</p>
+      <p><strong>Phone Number:</strong> ${d.phoneNumber || "—"}</p>
+      <p><strong>Preferred Time:</strong> ${d.preferredTime || "—"}</p>
+      <p><strong>Address:</strong> ${d.address || "—"}</p>
+      <p><strong>Delivery Notes:</strong> ${d.deliveryNotes || "—"}</p>
+    `;
+    document.getElementById("detailsModal").classList.remove("hidden");
+  }
+  function closeDetailsModal() {
+    document.getElementById("detailsModal").classList.add("hidden");
+  }
+
   // ── Confirm modal ──
   function showConfirm(title, msg, onConfirm) {
     document.getElementById("modalTitle").textContent  = title;
@@ -882,8 +983,8 @@
     currentMonday = getMonday(d);
   }
   render();
-  
-    // ── Auto-refresh ──
+
+  // ── Auto-refresh ──
   function reloadData() {
     deliveries     = JSON.parse(localStorage.getItem(DELIVERIES_KEY))  || {};
     blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
