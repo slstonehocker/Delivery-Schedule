@@ -196,6 +196,15 @@ function saveDelivery() {
   const key = `${selectedDate}-slot-${selectedSlot}`;
   const isNewDelivery = !deliveries[key];
 
+  // Require all fields except address and delivery notes
+  const requiredFields = ["salespersonName", "salespersonEmail", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime"];
+  for (const id of requiredFields) {
+    if (!document.getElementById(id).value.trim()) {
+      alert("Please fill out all fields before saving (Address and Delivery Notes are optional).");
+      return;
+    }
+  }
+
   // Validate order number format: S + exactly 7 digits
   const orderVal = document.getElementById("orderNumber").value.trim();
   if (orderVal && !/^S\d{7}$/.test(orderVal)) {
