@@ -213,6 +213,21 @@ button:hover {
   margin-bottom: 20px;
 }
 
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 6px;
+  padding: 14px 24px;
+  text-align: center;
+  font-weight: bold;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  z-index: 1000;
+}
+
 .search-bar input {
   width: 250px;
   padding: 8px;

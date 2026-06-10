@@ -147,7 +147,7 @@ function openPopup(dateKey, slot) {
     delivery ? delivery.deliveryNotes || "" : "";
 
   document.getElementById("popup").classList.remove("hidden");
-  document.getElementById("saveSuccess").style.display = "none";
+  document.getElementById("saveSuccess").classList.add("hidden");
 
   // If viewing an existing delivery, make fields read-only
   const isExisting = !!delivery;
@@ -273,9 +273,9 @@ function saveDelivery() {
 
   // Show success message then close after 2 seconds
   const successMsg = document.getElementById("saveSuccess");
-  successMsg.style.display = "block";
+  successMsg.classList.remove("hidden");
   setTimeout(() => {
-    successMsg.style.display = "none";
+    successMsg.classList.add("hidden");
     closePopup();
     renderCalendar();
   }, 2000);
