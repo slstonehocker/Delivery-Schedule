@@ -125,6 +125,9 @@ function openPopup(dateKey, slot) {
   document.getElementById("salespersonEmail").value =
     delivery ? delivery.salespersonEmail || "" : "";
 
+  document.getElementById("salespersonEmailConfirm").value =
+    delivery ? delivery.salespersonEmail || "" : "";
+
   document.getElementById("orderNumber").value =
     delivery ? delivery.orderNumber || "" : "";
 
@@ -148,7 +151,7 @@ function openPopup(dateKey, slot) {
 
   // If viewing an existing delivery, make fields read-only
   const isExisting = !!delivery;
-  const fields = ["salespersonName", "salespersonEmail", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime", "address", "deliveryNotes"];
+  const fields = ["salespersonName", "salespersonEmail", "salespersonEmailConfirm", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime", "address", "deliveryNotes"];
   fields.forEach(id => {
     const el = document.getElementById(id);
     if (isExisting) {
@@ -174,7 +177,7 @@ function openPopup(dateKey, slot) {
 }
 
 function enableEdit() {
-  const fields = ["salespersonName", "salespersonEmail", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime", "address", "deliveryNotes"];
+  const fields = ["salespersonName", "salespersonEmail", "salespersonEmailConfirm", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime", "address", "deliveryNotes"];
   fields.forEach(id => {
     const el = document.getElementById(id);
     el.removeAttribute("disabled");
@@ -197,7 +200,7 @@ function saveDelivery() {
   const isNewDelivery = !deliveries[key];
 
   // Require all fields except address and delivery notes
-  const requiredFields = ["salespersonName", "salespersonEmail", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime"];
+  const requiredFields = ["salespersonName", "salespersonEmail", "salespersonEmailConfirm", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime"];
   for (const id of requiredFields) {
     if (!document.getElementById(id).value.trim()) {
       alert("Please fill out all fields before saving (Address and Delivery Notes are optional).");
@@ -205,11 +208,41 @@ function saveDelivery() {
     }
   }
 
+  // Validate salesperson email format
+  const emailVal = document.getElementById("salespersonEmail").value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    alert("Please enter a valid email address.");
+    return;
+  }
+
+  // Confirm email matches
+  const emailConfirmVal = document.getElementById("salespersonEmailConfirm").value.trim();
+  if (emailVal.toLowerCase() !== emailConfirmVal.toLowerCase()) {
+    alert("Salesperson email and confirmation email do not match.");
+    return;
+  }
+
+  // Validate phone number format: 10 digits (with optional separators)
+  const phoneVal = document.getElementById("phoneNumber").value.trim();
+  if (!/^\d{10}$/.test(phoneVal.replace(/[^0-9]/g, ""))) {
+    alert("Please enter a valid 10-digit phone number.");
+    return;
+  }
+
   // Validate order number format: S + exactly 7 digits
   const orderVal = document.getElementById("orderNumber").value.trim();
   if (orderVal && !/^S\d{7}$/.test(orderVal)) {
     alert("Order number must start with S followed by exactly 7 digits (e.g. S1234567)");
     return;
+  }
+
+  // Prevent the same order number from being used in another slot
+  for (const otherKey in deliveries) {
+    if (otherKey === key) continue;
+    if ((deliveries[otherKey].orderNumber || "").toUpperCase() === orderVal.toUpperCase()) {
+      alert("This order number has already been scheduled for another delivery slot.");
+      return;
+    }
   }
 
   deliveries[key] = {
@@ -421,7 +454,6 @@ function clearSearch() {
 }
 
 // Auto-prefix order number with S and allow only digits after
-// Auto-prefix order number with S and allow only digits after
 document.getElementById("orderNumber").addEventListener("input", function () {
   if (this.disabled) return;
   let val = this.value.toUpperCase();
@@ -442,6 +474,7 @@ document.getElementById("orderNumber").addEventListener("input", function () {
 
   this.value = val;
 });
+
 renderCalendar();
 
 // Auto-refresh every 5 seconds, but only when popup is closed
@@ -457,4 +490,3 @@ window.addEventListener("storage", () => {
     renderCalendar();
   }
 });
-
