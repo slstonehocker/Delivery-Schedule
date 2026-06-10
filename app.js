@@ -144,6 +144,31 @@ function openPopup(dateKey, slot) {
     delivery ? delivery.deliveryNotes || "" : "";
 
   document.getElementById("popup").classList.remove("hidden");
+  document.getElementById("saveSuccess").style.display = "none";
+
+  // If viewing an existing delivery, make fields read-only
+  const isExisting = !!delivery;
+  const fields = ["salespersonName", "salespersonEmail", "orderNumber", "phoneNumber", "onsiteContact", "preferredTime", "address", "deliveryNotes"];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (isExisting) {
+      el.setAttribute("disabled", "true");
+      el.style.background = "#f5f5f5";
+      el.style.color = "#555";
+      el.style.cursor = "not-allowed";
+    } else {
+      el.removeAttribute("disabled");
+      el.style.background = "";
+      el.style.color = "";
+      el.style.cursor = "";
+    }
+  });
+
+  // Show/hide Save and Delete buttons based on whether it's new or existing
+  const saveBtn   = document.querySelector(".buttons button:nth-child(1)");
+  const deleteBtn = document.querySelector(".buttons button:nth-child(2)");
+  saveBtn.style.display   = isExisting ? "none" : "";
+  deleteBtn.style.display = isExisting ? "none" : "";
 }
 
 function closePopup() {
@@ -187,8 +212,14 @@ function saveDelivery() {
     sendApprovalEmail(selectedDate, selectedSlot, deliveries[key]);
   }
 
-  closePopup();
-  renderCalendar();
+  // Show success message then close after 2 seconds
+  const successMsg = document.getElementById("saveSuccess");
+  successMsg.style.display = "block";
+  setTimeout(() => {
+    successMsg.style.display = "none";
+    closePopup();
+    renderCalendar();
+  }, 2000);
 }
 
 async function sendApprovalEmail(dateKey, slot, delivery) {
@@ -365,6 +396,7 @@ function clearSearch() {
 
 // Auto-prefix order number with S and allow only digits after
 document.getElementById("orderNumber").addEventListener("input", function () {
+  if (this.disabled) return;
   let val = this.value.toUpperCase();
 
   // Always ensure it starts with S
