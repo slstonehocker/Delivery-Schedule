@@ -269,6 +269,8 @@ function saveDelivery() {
   // Send approval email only when a NEW delivery is added
   if (isNewDelivery) {
     sendApprovalEmail(selectedDate, selectedSlot, deliveries[key]);
+  } else {
+    sendUpdateEmail(selectedDate, selectedSlot, deliveries[key]);
   }
 
   // Show success message then close after 2 seconds
@@ -307,6 +309,32 @@ async function sendApprovalEmail(dateKey, slot, delivery) {
   }
 }
 
+async function sendUpdateEmail(dateKey, slot, delivery) {
+  try {
+    const adminLink = `${window.location.origin}${window.location.pathname.replace("index.html", "")}admin.html?date=${dateKey}`;
+    await emailjs.send(
+      "service_7alcqe6",
+      "template_update123",
+      {
+        dateKey:          dateKey,
+        slot:             slot,
+        orderNumber:      delivery.orderNumber      || "—",
+        onsiteContact:    delivery.onsiteContact    || "—",
+        phoneNumber:      delivery.phoneNumber      || "—",
+        preferredTime:    delivery.preferredTime    || "—",
+        address:          delivery.address          || "—",
+        deliveryNotes:    delivery.deliveryNotes    || "—",
+        salespersonName:  delivery.salespersonName  || "—",
+        salespersonEmail: delivery.salespersonEmail || "—",
+        adminLink:        adminLink
+      }
+    );
+    console.log("Update email sent for Order #" + delivery.orderNumber);
+  } catch (err) {
+    console.warn("Update email failed to send:", err);
+  }
+}
+
 function deleteDelivery() {
   const key = `${selectedDate}-slot-${selectedSlot}`;
 
@@ -321,6 +349,12 @@ function deleteDelivery() {
   delete deliveries[key];
 
   localStorage.setItem("deliveries", JSON.stringify(deliveries));
+
+  if (delivery) {
+    const removedDeliveries = JSON.parse(localStorage.getItem("removedDeliveries")) || {};
+    removedDeliveries[key] = { delivery, reason: "Removed" };
+    localStorage.setItem("removedDeliveries", JSON.stringify(removedDeliveries));
+  }
 
   // Send deletion email to salesperson
   if (delivery && delivery.salespersonEmail) {
