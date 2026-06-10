@@ -31,6 +31,10 @@ function renderCalendar() {
 
     const dayBox = document.createElement("div");
     dayBox.className = "day";
+    
+        if (dateKey === formatDate(new Date())) {
+      dayBox.classList.add("today");
+    }
 
     const isBlocked = !!blockedDays[dateKey];
 

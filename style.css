@@ -72,6 +72,11 @@ button:hover {
   min-width: 0;
 }
 
+.day.today {
+  border: 2px solid var(--maroon);
+  box-shadow: 0 0 0 2px rgba(129, 20, 25, 0.15);
+}
+
 .day-header {
   background: var(--maroon);
   color: white;
