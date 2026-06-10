@@ -454,20 +454,20 @@ function clearSearch() {
 }
 
 function showMyDeliveries() {
-  const email = document.getElementById("myDeliveriesEmail").value.trim().toLowerCase();
+  const name = document.getElementById("myDeliveriesName").value.trim().toLowerCase();
   const resultsBox = document.getElementById("myDeliveriesResults");
 
-  if (!email) {
+  if (!name) {
     resultsBox.classList.add("hidden");
     return;
   }
 
   const matches = Object.keys(deliveries)
-    .filter(key => (deliveries[key].salespersonEmail || "").toLowerCase() === email)
+    .filter(key => (deliveries[key].salespersonName || "").toLowerCase().includes(name))
     .sort();
 
   if (!matches.length) {
-    resultsBox.innerHTML = `<h3>My Deliveries</h3><div>No deliveries found for this email.</div>`;
+    resultsBox.innerHTML = `<h3>My Deliveries</h3><div>No deliveries found for this name.</div>`;
     resultsBox.classList.remove("hidden");
     return;
   }
