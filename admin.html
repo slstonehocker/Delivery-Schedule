@@ -501,7 +501,7 @@
   <div class="card">
     <div class="card-header">Manage Deliveries</div>
     <div class="admin-search-bar">
-      <input type="text" id="adminSearch" placeholder="Search by Order # or Salesperson Name">
+     <input type="text" id="adminSearch" placeholder="Search by Order # or Salesperson Name" onkeydown="if(event.key==='Enter') searchDeliveries()">
       <button class="btn btn-outline" style="width:auto;" onclick="searchDeliveries()">Search</button>
       <button class="btn btn-outline" style="width:auto;" onclick="clearAdminSearch()">Clear</button>
     </div>

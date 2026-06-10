@@ -561,8 +561,16 @@ document.getElementById("orderNumber").addEventListener("input", function () {
   this.value = val;
 });
 
-renderCalendar();
+// Allow pressing Enter to trigger search
+document.getElementById("searchOrder").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") searchOrder();
+});
 
+document.getElementById("myDeliveriesName").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") showMyDeliveries();
+});
+
+renderCalendar();
 // Auto-refresh every 5 seconds, but only when popup is closed
 setInterval(() => {
   if (document.getElementById("popup").classList.contains("hidden")) {
