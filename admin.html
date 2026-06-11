@@ -444,6 +444,26 @@
   </style>
 </head>
 <body>
+
+<!-- Login overlay -->
+<div id="loginOverlay" style="
+  position:fixed; inset:0; background:#811419;
+  display:flex; align-items:center; justify-content:center; z-index:9999;">
+  <div style="background:white; padding:36px; border-radius:12px; width:340px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+    <h2 style="color:#811419; margin:0 0 8px;">Admin Login</h2>
+    <p style="color:#666; font-size:14px; margin:0 0 20px;">Enter your admin password to continue.</p>
+    <input id="loginPassword" type="password" placeholder="Password"
+      style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:14px;box-sizing:border-box;margin-bottom:12px;"
+      onkeydown="if(event.key==='Enter') login()">
+    <button onclick="login()"
+      style="width:100%;padding:11px;background:#811419;color:white;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;">
+      Login
+    </button>
+    <div id="loginError" style="color:#991b1b;font-size:13px;margin-top:10px;display:none;">
+      Incorrect password. Please try again.
+    </div>
+  </div>
+</div>
  
 <div class="header">
   <a class="back-link" href="index.html">Back to Calendar</a>
@@ -543,24 +563,73 @@
 <div class="toast" id="toast"></div>
  
 <script>
-  // ── Shared storage keys (same localStorage as main calendar) ──
-  const DELIVERIES_KEY = "deliveries";
-  const BLOCKED_KEY    = "blockedDays";
-  const CANCELLED_KEY  = "cancelledSlots";
-  const APPROVED_KEY   = "approvedSlots";
-  const REMOVED_KEY    = "removedDeliveries";
+  const API_URL  = "http://localhost:4000";
+  let adminToken = sessionStorage.getItem("adminToken") || null;
 
-  let deliveries     = JSON.parse(localStorage.getItem(DELIVERIES_KEY))  || {};
-  let blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
-  let cancelledSlots = JSON.parse(localStorage.getItem(CANCELLED_KEY))   || {};
-  let approvedSlots  = JSON.parse(localStorage.getItem(APPROVED_KEY))    || {};
-  let removedDeliveries = JSON.parse(localStorage.getItem(REMOVED_KEY))  || {};
- 
+  // ── Login ─────────────────────────────────────────────────────────────────
+  async function login() {
+    const password = document.getElementById("loginPassword").value;
+    try {
+      const res  = await fetch(API_URL + "/auth/login", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ password })
+      });
+      if (!res.ok) {
+        document.getElementById("loginError").style.display = "block";
+        return;
+      }
+      const data = await res.json();
+      adminToken = data.token;
+      sessionStorage.setItem("adminToken", adminToken);
+      document.getElementById("loginOverlay").style.display = "none";
+      loadData().then(render);
+    } catch (err) {
+      document.getElementById("loginError").style.display = "block";
+    }
+  }
+
+  // If already logged in, hide the overlay immediately
+  if (adminToken) {
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("loginOverlay").style.display = "none";
+    });
+  }
+  let deliveries          = {};
+  let blockedDays         = {};
+  let cancelledDeliveries = [];  // array from API
   let currentMonday = getMonday(new Date());
   let selectedReason = "Weather";
   let pendingAction  = null;
- 
-  // ── Pill selection ──
+
+  function authHeaders() {
+    return { "Content-Type": "application/json", "Authorization": "Bearer " + adminToken };
+  }
+
+  async function loadData() {
+    try {
+      const [dRes, bRes, cRes] = await Promise.all([
+        fetch(API_URL + "/deliveries"),
+        fetch(API_URL + "/blocked-days"),
+        fetch(API_URL + "/cancelled-deliveries")
+      ]);
+      const dArr = await dRes.json();
+      const bArr = await bRes.json();
+      const cArr = await cRes.json();
+      deliveries = {};
+      dArr.forEach(d => {
+        const key = d.date_key + "-slot-" + d.slot;
+        deliveries[key] = { id: d.id, orderNumber: d.order_number, phoneNumber: d.phone_number,
+          onsiteContact: d.onsite_contact, preferredTime: d.preferred_time, address: d.address,
+          deliveryNotes: d.delivery_notes, salespersonName: d.salesperson_name,
+          salespersonEmail: d.salesperson_email, status: d.status };
+      });
+      blockedDays = {};
+      bArr.forEach(b => { blockedDays[b.date_key] = { id: b.id, reason: b.reason, note: b.note }; });
+      cancelledDeliveries = cArr;
+    } catch (err) { console.error("Failed to load:", err); }
+  }
+
   document.querySelectorAll(".pill").forEach(p => {
     p.addEventListener("click", () => {
       document.querySelectorAll(".pill").forEach(x => x.classList.remove("active"));
@@ -568,509 +637,275 @@
       selectedReason = p.dataset.reason;
     });
   });
- 
-  // ── Block a day ──
-  function blockDay() {
+
+  async function blockDay() {
     const date = document.getElementById("blockDate").value;
-    if (!date) { showToast(" Please pick a date first."); return; }
- 
+    if (!date) { showToast("Please pick a date first."); return; }
     const note = document.getElementById("blockNote").value.trim();
- 
-    showConfirm(
-      "Block This Day?",
-      `Block <strong>${formatDisplay(date)}</strong> for reason: <strong>${selectedReason}</strong>?
-       ${note ? `<br><br>Note: "${note}"` : ""}
-       <br><br>Existing deliveries on this day will be marked cancelled.`,
-      () => {
-        blockedDays[date] = { reason: selectedReason, note };
-        save();
-        document.getElementById("blockDate").value = "";
-        document.getElementById("blockNote").value = "";
-        render();
-        showToast(` ${formatDisplay(date)} blocked — ${selectedReason}`);
-      }
-    );
+    showConfirm("Block This Day?",
+      "Block <strong>" + formatDisplay(date) + "</strong> for reason: <strong>" + selectedReason + "</strong>?" +
+      (note ? "<br><br>Note: \"" + note + "\"" : "") + "<br><br>Existing deliveries on this day will be marked cancelled.",
+      async () => {
+        try {
+          const res = await fetch(API_URL + "/blocked-days", { method: "POST", headers: authHeaders(),
+            body: JSON.stringify({ dateKey: date, reason: selectedReason, note }) });
+          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+          document.getElementById("blockDate").value = "";
+          document.getElementById("blockNote").value = "";
+          await loadData(); render();
+          showToast(formatDisplay(date) + " blocked — " + selectedReason);
+        } catch (err) { showToast("Could not connect to server."); }
+      });
   }
- 
-  // ── Approve a slot ──
+
   function approveSlot(key, orderNum) {
-    showConfirm(
-      "Approve Delivery?",
-      `Approve delivery <strong>${orderNum || key}</strong>? The status will update to Approved.`,
-      () => {
-        // Re-read deliveries fresh from localStorage
-        deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+    const delivery = deliveries[key];
+    showConfirm("Approve Delivery?",
+      "Approve delivery <strong>" + (orderNum || key) + "</strong>? The status will update to Approved.",
+      async () => {
+        try {
+          const res = await fetch(API_URL + "/deliveries/" + delivery.id, { method: "PUT",
+            headers: authHeaders(), body: JSON.stringify({ status: "approved" }) });
+          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+          await loadData(); render(); showToast("Delivery approved.");
+          if (delivery.salespersonEmail) sendStatusEmail(delivery, key, "Great news! Your delivery request has been approved.");
+        } catch (err) { showToast("Could not connect to server."); }
+      });
+  }
 
-        approvedSlots[key] = true;
-        delete cancelledSlots[key];
-        save();
-        render();
-        showToast("Delivery approved.");
-
-        // Send confirmation email to salesperson
-        const delivery = deliveries[key];
-        if (delivery && delivery.salespersonEmail) {
+  function rejectSlot(key, orderNum) {
+    const delivery = deliveries[key];
+    showConfirm("Reject Delivery?",
+      "Reject delivery <strong>" + (orderNum || key) + "</strong>? This will remove it from the calendar.",
+      async () => {
+        try {
+          // Save to cancelled deliveries before deleting
           const dateKey = key.split("-slot-")[0];
           const slot    = key.split("-slot-")[1];
-          const [y, m, d] = dateKey.split("-").map(Number);
-          const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
-            weekday: "long", month: "long", day: "numeric", year: "numeric"
+          await fetch(API_URL + "/cancelled-deliveries", {
+            method: "POST", headers: authHeaders(),
+            body: JSON.stringify({
+              originalKey:      key,
+              dateKey,
+              slot:             parseInt(slot),
+              reason:           "Rejected",
+              orderNumber:      delivery.orderNumber      || "",
+              salespersonName:  delivery.salespersonName  || "",
+              salespersonEmail: delivery.salespersonEmail || "",
+              phoneNumber:      delivery.phoneNumber      || "",
+              onsiteContact:    delivery.onsiteContact    || "",
+              preferredTime:    delivery.preferredTime    || "",
+              address:          delivery.address          || "",
+              deliveryNotes:    delivery.deliveryNotes    || ""
+            })
           });
 
-          emailjs.send(
-            "service_7alcqe6",
-            "template_b71mbas",
-            {
-              salespersonName:  delivery.salespersonName  || "Salesperson",
-              salespersonEmail: delivery.salespersonEmail,
-              message:          "Great news! Your delivery request has been approved.",
-              orderNumber:      delivery.orderNumber      || "—",
-              dateKey:          displayDate,
-              slot:             slot,
-              onsiteContact:    delivery.onsiteContact    || "—",
-              phoneNumber:      delivery.phoneNumber      || "—",
-              preferredTime:    delivery.preferredTime    || "—",
-              address:          delivery.address          || "—",
-              deliveryNotes:    delivery.deliveryNotes    || "—"
-            }
-          ).then(() => {
-            showToast("Confirmation email sent to " + delivery.salespersonName + ".");
-          }).catch(err => {
-            console.warn("Failed to send confirmation email:", err);
-            showToast("Approved but confirmation email failed to send.");
-          });
-        }
-      }
-    );
+          const res = await fetch(API_URL + "/deliveries/" + delivery.id, { method: "DELETE", headers: authHeaders() });
+          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+          await loadData(); render(); showToast("Delivery rejected and removed.");
+          if (delivery.salespersonEmail) sendStatusEmail(delivery, key, "Unfortunately your delivery request has been rejected. Please contact your manager for more information.");
+        } catch (err) { showToast("Could not connect to server."); }
+      });
   }
 
-  // ── Reject a slot ──
-  function rejectSlot(key, orderNum, deliverySnapshot) {
-    showConfirm(
-      "Reject Delivery?",
-      `Reject delivery <strong>${orderNum || key}</strong>? The slot will be marked cancelled.`,
-      () => {
-        deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
-        const delivery = deliveries[key] || deliverySnapshot;
-
-        // Remove delivery from calendar entirely
-        delete deliveries[key];
-        delete cancelledSlots[key];
-        delete approvedSlots[key];
-        if (delivery) {
-          removedDeliveries[key] = { delivery, reason: "Rejected" };
-          localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
-        }
-        localStorage.setItem("deliveries", JSON.stringify(deliveries));
-        save();
-        render();
-        showToast("Delivery rejected and removed.");
-
-        // Send rejection email to salesperson
-        if (delivery && delivery.salespersonEmail) {
+  function removeSlot(key, orderNum) {
+    const delivery = deliveries[key];
+    showConfirm("Remove Delivery?",
+      "Permanently remove delivery <strong>" + (orderNum || key) + "</strong>? This cannot be undone.",
+      async () => {
+        try {
+          // Save to cancelled deliveries before deleting
           const dateKey = key.split("-slot-")[0];
           const slot    = key.split("-slot-")[1];
-          const [y, m, d] = dateKey.split("-").map(Number);
-          const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
-            weekday: "long", month: "long", day: "numeric", year: "numeric"
+          await fetch(API_URL + "/cancelled-deliveries", {
+            method: "POST", headers: authHeaders(),
+            body: JSON.stringify({
+              originalKey:      key,
+              dateKey,
+              slot:             parseInt(slot),
+              reason:           "Removed",
+              orderNumber:      delivery.orderNumber      || "",
+              salespersonName:  delivery.salespersonName  || "",
+              salespersonEmail: delivery.salespersonEmail || "",
+              phoneNumber:      delivery.phoneNumber      || "",
+              onsiteContact:    delivery.onsiteContact    || "",
+              preferredTime:    delivery.preferredTime    || "",
+              address:          delivery.address          || "",
+              deliveryNotes:    delivery.deliveryNotes    || ""
+            })
           });
 
-          emailjs.send(
-            "service_7alcqe6",
-            "template_b71mbas",
-            {
-              salespersonName:  delivery.salespersonName  || "Salesperson",
-              salespersonEmail: delivery.salespersonEmail,
-              message:          "Unfortunately your delivery request has been rejected. Please contact your manager for more information.",
-              orderNumber:      delivery.orderNumber      || "—",
-              dateKey:          displayDate,
-              slot:             slot,
-              onsiteContact:    delivery.onsiteContact    || "—",
-              phoneNumber:      delivery.phoneNumber      || "—",
-              preferredTime:    delivery.preferredTime    || "—",
-              address:          delivery.address          || "—",
-              deliveryNotes:    delivery.deliveryNotes    || "—"
-            }
-          ).then(() => {
-            showToast("Rejection email sent to " + delivery.salespersonName + ".");
-          }).catch(err => {
-            console.warn("Failed to send rejection email:", err);
-          });
-        }
-      }
-    );
+          const res = await fetch(API_URL + "/deliveries/" + delivery.id, { method: "DELETE", headers: authHeaders() });
+          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+          await loadData(); render(); showToast("Delivery removed.");
+          if (delivery.salespersonEmail) sendStatusEmail(delivery, key, "Your delivery has been removed by the manager.");
+        } catch (err) { showToast("Could not connect to server."); }
+      });
   }
 
-  // ── Remove a slot entirely ──
-  function removeSlot(key, orderNum, deliverySnapshot) {
-    showConfirm(
-      "Remove Delivery?",
-      `Permanently remove delivery <strong>${orderNum || key}</strong>? This cannot be undone.`,
-      () => {
-        deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
-        const delivery = deliveries[key] || deliverySnapshot;
-
-        delete deliveries[key];
-        delete cancelledSlots[key];
-        delete approvedSlots[key];
-        if (delivery) {
-          removedDeliveries[key] = { delivery, reason: "Removed" };
-          localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
-        }
-        localStorage.setItem("deliveries", JSON.stringify(deliveries));
-        save();
-        render();
-        showToast("Delivery removed.");
-
-        // Send removal email to salesperson
-        if (delivery && delivery.salespersonEmail) {
-          const dateKey = key.split("-slot-")[0];
-          const slot    = key.split("-slot-")[1];
-          const [y, m, d] = dateKey.split("-").map(Number);
-          const displayDate = new Date(y, m - 1, d).toLocaleDateString("en-US", {
-            weekday: "long", month: "long", day: "numeric", year: "numeric"
-          });
-
-          emailjs.send(
-            "service_7alcqe6",
-            "template_b71mbas",
-            {
-              salespersonName:  delivery.salespersonName  || "Salesperson",
-              salespersonEmail: delivery.salespersonEmail,
-              message:          "Your delivery has been removed by the manager. Please contact your manager for more information.",
-              orderNumber:      delivery.orderNumber      || "—",
-              dateKey:          displayDate,
-              slot:             slot,
-              onsiteContact:    delivery.onsiteContact    || "—",
-              phoneNumber:      delivery.phoneNumber      || "—",
-              preferredTime:    delivery.preferredTime    || "—",
-              address:          delivery.address          || "—",
-              deliveryNotes:    delivery.deliveryNotes    || "—"
-            }
-          ).then(() => {
-            showToast("Removal email sent to " + delivery.salespersonName + ".");
-          }).catch(err => console.warn("Failed to send removal email:", err));
-        }
-      }
-    );
+  function sendStatusEmail(delivery, key, message) {
+    const dateKey = key.split("-slot-")[0];
+    const slot    = key.split("-slot-")[1];
+    const parts   = dateKey.split("-").map(Number);
+    const displayDate = new Date(parts[0], parts[1]-1, parts[2]).toLocaleDateString("en-US",
+      { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    emailjs.send("service_7alcqe6", "template_b71mbas", {
+      salespersonName: delivery.salespersonName || "Salesperson",
+      salespersonEmail: delivery.salespersonEmail, message,
+      orderNumber: delivery.orderNumber || "—", dateKey: displayDate, slot,
+      onsiteContact: delivery.onsiteContact || "—", phoneNumber: delivery.phoneNumber || "—",
+      preferredTime: delivery.preferredTime || "—", address: delivery.address || "—",
+      deliveryNotes: delivery.deliveryNotes || "—"
+    }).then(() => showToast("Email sent to " + delivery.salespersonName + "."))
+      .catch(err => console.warn("Email failed:", err));
   }
 
-  // ── Cancel / restore a single slot ──
-  function toggleCancelSlot(key, orderNum) {
-    if (cancelledSlots[key]) {
-      // Restore
-      showConfirm(
-        "Restore Delivery?",
-        `Restore delivery <strong>${orderNum || key}</strong> to Pending Approval?`,
-        () => {
-          delete cancelledSlots[key];
-          save();
-          render();
-          showToast(" Delivery restored.");
-        }
-      );
-    } else {
-      // Cancel
-      showConfirm(
-        "Cancel Delivery?",
-        `Cancel delivery <strong>${orderNum || key}</strong>? The slot will be marked cancelled.`,
-        () => {
-          cancelledSlots[key] = true;
-          save();
-          render();
-          showToast(" Delivery cancelled.");
-        }
-      );
-    }
+  function unblockDay(dateKey) {
+    showConfirm("Unblock This Day?", "Remove the block on <strong>" + formatDisplay(dateKey) + "</strong>?",
+      async () => {
+        try {
+          const res = await fetch(API_URL + "/blocked-days/" + dateKey, { method: "DELETE", headers: authHeaders() });
+          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+          await loadData(); render(); showToast(formatDisplay(dateKey) + " unblocked.");
+        } catch (err) { showToast("Could not connect to server."); }
+      });
   }
- 
-  // ── Restore a removed/rejected delivery back to the calendar ──
-  function restoreRemovedDelivery(key) {
-    const entry = removedDeliveries[key];
-    if (!entry) return;
 
-    deliveries = JSON.parse(localStorage.getItem("deliveries")) || {};
+  function render() { renderBlockedList(); renderCancelledList(); renderDeliveryGrid(); }
 
-    if (deliveries[key]) {
-      showToast("That slot is now occupied — can't add back.");
+  function renderCancelledList() {
+    const list = document.getElementById("removedList");
+    if (!list) return;
+    if (!cancelledDeliveries.length) {
+      list.innerHTML = '<div class="empty-state">No removed or rejected deliveries.</div>';
       return;
     }
-
-    showConfirm(
-      "Add Back to Calendar?",
-      `Restore <strong>Order #${entry.delivery.orderNumber || "—"}</strong> to its original slot as a pending delivery?`,
-      () => {
-        deliveries[key] = entry.delivery;
-        delete cancelledSlots[key];
-        delete approvedSlots[key];
-        delete removedDeliveries[key];
-
-        localStorage.setItem("deliveries", JSON.stringify(deliveries));
-        localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
-        save();
-        render();
-        showToast("Delivery added back to calendar.");
-      }
-    );
-  }
-
-  // ── Unblock a day ──
-  function unblockDay(date) {
-    showConfirm(
-      "Unblock This Day?",
-      `Remove the block on <strong>${formatDisplay(date)}</strong>? Deliveries will return to Pending Approval.`,
-      () => {
-        delete blockedDays[date];
-        save();
-        render();
-        showToast(` ${formatDisplay(date)} unblocked.`);
-      }
-    );
-  }
- 
-  // ── Render ──
-  function render() {
-    renderBlockedList();
-    renderRemovedList();
-    renderDeliveryGrid();
-  }
-
-  function renderRemovedList() {
-    const list  = document.getElementById("removedList");
-    const today = fmt(new Date());
-
-    // Drop entries whose delivery date has passed
-    let changed = false;
-    Object.keys(removedDeliveries).forEach(key => {
-      const dateKey = key.split("-slot-")[0];
-      if (dateKey < today) {
-        delete removedDeliveries[key];
-        changed = true;
-      }
-    });
-    if (changed) localStorage.setItem(REMOVED_KEY, JSON.stringify(removedDeliveries));
-
-    const keys = Object.keys(removedDeliveries).sort();
-    if (!keys.length) {
-      list.innerHTML = `<div class="empty-state">No removed or rejected deliveries.</div>`;
-      return;
-    }
-
-    list.innerHTML = keys.map(key => {
-      const { delivery, reason } = removedDeliveries[key];
-      const dateKey = key.split("-slot-")[0];
-      const slot    = key.split("-slot-")[1];
-      return `
-        <div class="blocked-item">
-          <div class="info">
-            <div class="date-label">${formatDisplay(dateKey)} — Slot ${slot}</div>
-            <span class="reason-tag">${reason}</span>
-            <div class="note">Order #${delivery.orderNumber || "—"} · ${delivery.salespersonName || "—"}</div>
-          </div>
-          <button class="unblock-btn" onclick='restoreRemovedDelivery("${key}")'>Add Back</button>
-        </div>`;
+    list.innerHTML = cancelledDeliveries.map(c => {
+      return '<div class="blocked-item">' +
+        '<div class="info">' +
+          '<div class="date-label">' + formatDisplay(c.date_key) + ' — Slot ' + c.slot + '</div>' +
+          '<span class="reason-tag">' + c.reason + '</span>' +
+          '<div class="note">Order #' + (c.order_number||"—") + ' · ' + (c.salesperson_name||"—") + '</div>' +
+        '</div>' +
+        '<button class="unblock-btn" onclick="restoreDelivery(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">Add Back</button>' +
+      '</div>';
     }).join("");
   }
- 
+
+  async function restoreDelivery(c) {
+    const key = c.original_key;
+    if (deliveries[key]) { showToast("That slot is now occupied — can't add back."); return; }
+    showConfirm("Add Back to Calendar?",
+      "Restore Order #" + (c.order_number||"—") + " to its original slot as a pending delivery?",
+      async () => {
+        try {
+          // Re-add to deliveries
+          const res = await fetch(API_URL + "/deliveries", {
+            method: "POST", headers: authHeaders(),
+            body: JSON.stringify({
+              dateKey:          c.date_key,
+              slot:             c.slot,
+              orderNumber:      c.order_number,
+              salespersonName:  c.salesperson_name,
+              salespersonEmail: c.salesperson_email,
+              phoneNumber:      c.phone_number,
+              onsiteContact:    c.onsite_contact,
+              preferredTime:    c.preferred_time,
+              address:          c.address,
+              deliveryNotes:    c.delivery_notes
+            })
+          });
+          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+
+          // Remove from cancelled list
+          await fetch(API_URL + "/cancelled-deliveries/" + c.id, { method: "DELETE", headers: authHeaders() });
+
+          await loadData(); render();
+          showToast("Delivery added back to calendar.");
+        } catch (err) { showToast("Could not connect to server."); }
+      });
+  }
+
   function renderBlockedList() {
     const list = document.getElementById("blockedList");
     const keys = Object.keys(blockedDays).sort();
-    if (!keys.length) {
-      list.innerHTML = `<div class="empty-state">No days blocked yet.</div>`;
-      return;
-    }
+    if (!keys.length) { list.innerHTML = '<div class="empty-state">No days blocked yet.</div>'; return; }
     list.innerHTML = keys.map(date => {
-      const { reason, note } = blockedDays[date];
-      return `
-        <div class="blocked-item">
-          <div class="info">
-            <div class="date-label">${formatDisplay(date)}</div>
-            <span class="reason-tag">${reason}</span>
-            ${note ? `<div class="note">${note}</div>` : ""}
-          </div>
-          <button class="unblock-btn" onclick="unblockDay('${date}')">Unblock</button>
-        </div>`;
+      const b = blockedDays[date];
+      return '<div class="blocked-item"><div class="info"><div class="date-label">' + formatDisplay(date) + '</div>' +
+        '<span class="reason-tag">' + b.reason + '</span>' + (b.note ? '<div class="note">' + b.note + '</div>' : '') +
+        '</div><button class="unblock-btn" onclick="unblockDay(\'' + date + '\')">Unblock</button></div>';
     }).join("");
   }
- 
-  function renderDeliveryGrid() {
-    const grid    = document.getElementById("deliveryGrid");
-    const dayNames= ["Monday","Tuesday","Wednesday","Thursday","Friday"];
-    document.getElementById("weekLabel").textContent =
-      `${formatDisplay(fmt(currentMonday))} – ${formatDisplay(fmt(addDays(currentMonday,4)))}`;
- 
-    grid.innerHTML = dayNames.map((name, i) => {
-      const date    = addDays(currentMonday, i);
-      const dateKey = fmt(date);
-      const isBlocked = !!blockedDays[dateKey];
- 
-      const slots = Array.from({length:5},(_,s)=>{
-        const slot = s+1;
-        const key  = `${dateKey}-slot-${slot}`;
-        const d    = deliveries[key];
-        const isCancelledByAdmin = !!cancelledSlots[key];
-        const isCancelledByBlock = isBlocked && !!d;
-        const isApproved         = !!approvedSlots[key];
 
+  function renderDeliveryGrid() {
+    const grid     = document.getElementById("deliveryGrid");
+    const dayNames = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+    document.getElementById("weekLabel").textContent =
+      formatDisplay(fmt(currentMonday)) + " \u2013 " + formatDisplay(fmt(addDays(currentMonday,4)));
+
+    grid.innerHTML = dayNames.map((name, i) => {
+      const date      = addDays(currentMonday, i);
+      const dateKey   = fmt(date);
+      const isBlocked = !!blockedDays[dateKey];
+
+      const slots = Array.from({ length: 5 }, (_, s) => {
+        const slot = s+1, key = dateKey+"-slot-"+slot, d = deliveries[key];
+        const isApproved = d && d.status === "approved";
+        const isCancelled = d && d.status === "cancelled";
         let statusHtml, actionHtml;
         if (!d) {
-          statusHtml = `<span class="status-badge status-empty">Empty</span>`;
-          actionHtml = `<span></span>`;
-        } else if (isCancelledByAdmin) {
-          statusHtml = `<span class="status-badge status-cancelled">Cancelled</span>`;
-          actionHtml = `<div class="action-btns">
-            <button class="cancel-slot-btn restore" onclick="toggleCancelSlot('${key}','${d.orderNumber||""}')">Restore</button>
-            <button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button>
-          </div>`;
-        } else if (isCancelledByBlock) {
-          statusHtml = `<span class="status-badge status-cancelled">Day Blocked</span>`;
-          actionHtml = `<div class="action-btns"><button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button></div>`;
+          statusHtml = '<span class="status-badge status-empty">Empty</span>';
+          actionHtml = '<span></span>';
+        } else if (isCancelled) {
+          statusHtml = '<span class="status-badge status-cancelled">Cancelled</span>';
+          actionHtml = '<div class="action-btns"><button class="remove-btn" onclick="removeSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Remove</button></div>';
         } else if (isApproved) {
-          statusHtml = `<span class="status-badge status-approved"> Approved</span>`;
-          actionHtml = `<div class="action-btns">
-            <button class="reject-btn" onclick='rejectSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Reject</button>
-            <button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button>
-          </div>`;
+          statusHtml = '<span class="status-badge status-approved">Approved</span>';
+          actionHtml = '<div class="action-btns">' +
+            '<button class="reject-btn" onclick="rejectSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Reject</button>' +
+            '<button class="remove-btn" onclick="removeSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Remove</button></div>';
         } else {
-          statusHtml = `<span class="status-badge status-pending">Pending</span>`;
-          actionHtml = `<div class="action-btns">
-            <button class="approve-btn" onclick="approveSlot('${key}','${d.orderNumber||""}')">Approve</button>
-            <button class="reject-btn" onclick='rejectSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Reject</button>
-            <button class="remove-btn" onclick='removeSlot("${key}","${(d.orderNumber||"").replace(/"/g,"")}", ${JSON.stringify(d)})'>Remove</button>
-          </div>`;
+          statusHtml = '<span class="status-badge status-pending">Pending</span>';
+          actionHtml = '<div class="action-btns">' +
+            '<button class="approve-btn" onclick="approveSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Approve</button>' +
+            '<button class="reject-btn" onclick="rejectSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Reject</button>' +
+            '<button class="remove-btn" onclick="removeSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Remove</button></div>';
         }
- 
-        return `
-          <div class="delivery-row"
-               data-key="${key}"
-               draggable="${d ? "true" : "false"}"
-               ondragstart="dragStart(event)"
-               ondragover="dragOver(event)"
-               ondragleave="dragLeave(event)"
-               ondrop="dragDrop(event)"
-               ondragend="dragEnd(event)">
-            <span class="slot-label">Slot ${slot}</span>
-            <div class="delivery-info" ${d ? `style="cursor:pointer;" onclick='showDeliveryDetails(${JSON.stringify(d)})'` : ""}>
-              ${d
-                ? `<div class="order">#${d.orderNumber||"—"}</div>
-                   <div class="sub">${d.onsiteContact||""} ${d.preferredTime ? "· "+d.preferredTime : ""}</div>`
-                : `<span class="empty-slot">No delivery</span>`}
-            </div>
-            ${statusHtml}
-            ${actionHtml}
-          </div>`;
+        return '<div class="delivery-row" data-key="' + key + '">' +
+          '<span class="slot-label">Slot ' + slot + '</span>' +
+          '<div class="delivery-info"' + (d ? ' style="cursor:pointer;" onclick="showDeliveryDetails(\'' + key + '\')"' : '') + '>' +
+          (d ? '<div class="order">#' + (d.orderNumber||"—") + '</div><div class="sub">' + (d.onsiteContact||"") + (d.preferredTime ? " · "+d.preferredTime : "") + '</div>'
+             : '<span class="empty-slot">No delivery</span>') +
+          '</div>' + statusHtml + actionHtml + '</div>';
       }).join("");
- 
-      return `
-        <div class="day-block ${isBlocked?"day-blocked":""}">
-          <div class="day-title ${isBlocked?"blocked-title":""}">
-            <span>${name}, ${formatDisplay(dateKey)}</span>
-            ${isBlocked
-              ? `<span class="blocked-badge"> ${blockedDays[dateKey].reason}</span>`
-              : ""}
-          </div>
-          ${slots}
-        </div>`;
+
+      return '<div class="day-block' + (isBlocked ? " day-blocked" : "") + '">' +
+        '<div class="day-title' + (isBlocked ? " blocked-title" : "") + '">' +
+        '<span>' + name + ', ' + formatDisplay(dateKey) + '</span>' +
+        (isBlocked ? '<span class="blocked-badge">' + blockedDays[dateKey].reason + '</span>' : '') +
+        '</div>' + slots + '</div>';
     }).join("");
   }
- 
-  // ── Drag and drop to move deliveries ──
-  function dragStart(e) {
-    const row = e.currentTarget;
-    if (row.getAttribute("draggable") !== "true") {
-      e.preventDefault();
-      return;
-    }
-    e.dataTransfer.setData("text/plain", row.dataset.key);
-    e.dataTransfer.effectAllowed = "move";
-  }
 
-  function dragOver(e) {
-    e.preventDefault();
-    e.currentTarget.classList.add("drag-over");
-  }
-
-  function dragLeave(e) {
-    e.currentTarget.classList.remove("drag-over");
-  }
-
-  function dragEnd(e) {
-    document.querySelectorAll(".delivery-row.drag-over").forEach(el => el.classList.remove("drag-over"));
-  }
-
-  function dragDrop(e) {
-    e.preventDefault();
-    const row = e.currentTarget;
-    row.classList.remove("drag-over");
-
-    const fromKey = e.dataTransfer.getData("text/plain");
-    const toKey   = row.dataset.key;
-    if (!fromKey || fromKey === toKey) return;
-
-    const fromDelivery = deliveries[fromKey];
-    if (!fromDelivery) return;
-
-    if (deliveries[toKey] && !confirm("This slot already has a delivery. Swap them?")) return;
-
-    const toDelivery       = deliveries[toKey];
-    const fromCancelled    = cancelledSlots[fromKey];
-    const fromApproved     = approvedSlots[fromKey];
-    const toCancelled      = cancelledSlots[toKey];
-    const toApproved       = approvedSlots[toKey];
-
-    if (toDelivery) {
-      deliveries[fromKey] = toDelivery;
-    } else {
-      delete deliveries[fromKey];
-    }
-    deliveries[toKey] = fromDelivery;
-
-    if (fromCancelled) cancelledSlots[toKey] = true; else delete cancelledSlots[toKey];
-    if (toCancelled)   cancelledSlots[fromKey] = true; else delete cancelledSlots[fromKey];
-    if (fromApproved)  approvedSlots[toKey] = true; else delete approvedSlots[toKey];
-    if (toApproved)    approvedSlots[fromKey] = true; else delete approvedSlots[fromKey];
-
-    localStorage.setItem("deliveries", JSON.stringify(deliveries));
-    localStorage.setItem(CANCELLED_KEY, JSON.stringify(cancelledSlots));
-    localStorage.setItem(APPROVED_KEY,  JSON.stringify(approvedSlots));
-
-    renderDeliveryGrid();
-  }
-
-  // ── Search across all weeks ──
   function searchDeliveries() {
     const term = document.getElementById("adminSearch").value.trim().toLowerCase();
     const resultsBox = document.getElementById("adminSearchResults");
-
-    if (!term) {
-      resultsBox.classList.add("hidden");
-      return;
-    }
-
-    const matches = Object.keys(deliveries)
-      .filter(key => {
-        const d = deliveries[key];
-        return (d.orderNumber || "").toLowerCase().includes(term) ||
-               (d.salespersonName || "").toLowerCase().includes(term);
-      })
-      .sort();
-
-    if (!matches.length) {
-      resultsBox.innerHTML = `<div class="admin-search-results"><div class="empty-state">No deliveries found.</div></div>`;
-      resultsBox.classList.remove("hidden");
-      return;
-    }
-
-    resultsBox.innerHTML = `<div class="admin-search-results">` + matches.map(key => {
+    if (!term) { resultsBox.classList.add("hidden"); return; }
+    const matches = Object.keys(deliveries).filter(key => {
       const d = deliveries[key];
-      const dateKey = key.split("-slot-")[0];
-      const slot    = key.split("-slot-")[1];
-      return `
-        <div class="admin-search-result" onclick='jumpToDelivery("${dateKey}")'>
-          <span>${formatDisplay(dateKey)} — Slot ${slot} — Order #${d.orderNumber || "—"}</span>
-          <span>${d.salespersonName || "—"}</span>
-        </div>`;
-    }).join("") + `</div>`;
+      return (d.orderNumber||"").toLowerCase().includes(term) || (d.salespersonName||"").toLowerCase().includes(term);
+    }).sort();
+    if (!matches.length) {
+      resultsBox.innerHTML = '<div class="admin-search-results"><div class="empty-state">No deliveries found.</div></div>';
+      resultsBox.classList.remove("hidden"); return;
+    }
+    resultsBox.innerHTML = '<div class="admin-search-results">' + matches.map(key => {
+      const d = deliveries[key], dateKey = key.split("-slot-")[0], slot = key.split("-slot-")[1];
+      return '<div class="admin-search-result" onclick="jumpToDelivery(\'' + dateKey + '\')">' +
+        '<span>' + formatDisplay(dateKey) + ' — Slot ' + slot + ' — Order #' + (d.orderNumber||"—") + '</span>' +
+        '<span>' + (d.salespersonName||"—") + '</span></div>';
+    }).join("") + '</div>';
     resultsBox.classList.remove("hidden");
   }
 
@@ -1080,105 +915,59 @@
   }
 
   function jumpToDelivery(dateKey) {
-    const d = new Date(dateKey + "T12:00:00");
-    currentMonday = getMonday(d);
+    currentMonday = getMonday(new Date(dateKey + "T12:00:00"));
     renderDeliveryGrid();
   }
 
-  // ── Week nav ──
-  function changeWeek(dir) {
-    currentMonday = addDays(currentMonday, dir*7);
-    renderDeliveryGrid();
-  }
- 
-  // ── Delivery details modal ──
-  function showDeliveryDetails(d) {
-    document.getElementById("detailsContent").innerHTML = `
-      <p><strong>Order #:</strong> ${d.orderNumber || "—"}</p>
-      <p><strong>Salesperson:</strong> ${d.salespersonName || "—"}</p>
-      <p><strong>Salesperson Email:</strong> ${d.salespersonEmail || "—"}</p>
-      <p><strong>Onsite Contact:</strong> ${d.onsiteContact || "—"}</p>
-      <p><strong>Phone Number:</strong> ${d.phoneNumber || "—"}</p>
-      <p><strong>Preferred Time:</strong> ${d.preferredTime || "—"}</p>
-      <p><strong>Address:</strong> ${d.address || "—"}</p>
-      <p><strong>Delivery Notes:</strong> ${d.deliveryNotes || "—"}</p>
-    `;
+  function changeWeek(dir) { currentMonday = addDays(currentMonday, dir*7); renderDeliveryGrid(); }
+
+  function showDeliveryDetails(key) {
+    const d = deliveries[key];
+    if (!d) return;
+    document.getElementById("detailsContent").innerHTML =
+      "<p><strong>Order #:</strong> " + (d.orderNumber||"—") + "</p>" +
+      "<p><strong>Salesperson:</strong> " + (d.salespersonName||"—") + "</p>" +
+      "<p><strong>Salesperson Email:</strong> " + (d.salespersonEmail||"—") + "</p>" +
+      "<p><strong>Onsite Contact:</strong> " + (d.onsiteContact||"—") + "</p>" +
+      "<p><strong>Phone Number:</strong> " + (d.phoneNumber||"—") + "</p>" +
+      "<p><strong>Preferred Time:</strong> " + (d.preferredTime||"—") + "</p>" +
+      "<p><strong>Address:</strong> " + (d.address||"—") + "</p>" +
+      "<p><strong>Delivery Notes:</strong> " + (d.deliveryNotes||"—") + "</p>";
     document.getElementById("detailsModal").classList.remove("hidden");
   }
-  function closeDetailsModal() {
-    document.getElementById("detailsModal").classList.add("hidden");
-  }
+  function closeDetailsModal() { document.getElementById("detailsModal").classList.add("hidden"); }
 
-  // ── Confirm modal ──
   function showConfirm(title, msg, onConfirm) {
-    document.getElementById("modalTitle").textContent  = title;
-    document.getElementById("modalMessage").innerHTML  = msg;
+    document.getElementById("modalTitle").textContent = title;
+    document.getElementById("modalMessage").innerHTML = msg;
     document.getElementById("confirmModal").classList.remove("hidden");
     pendingAction = onConfirm;
   }
-  function closeModal() {
-    document.getElementById("confirmModal").classList.add("hidden");
-    pendingAction = null;
-  }
-  document.getElementById("modalConfirmBtn").addEventListener("click", () => {
-    if (pendingAction) pendingAction();
-    closeModal();
-  });
- 
-  // ── Toast ──
+  function closeModal() { document.getElementById("confirmModal").classList.add("hidden"); pendingAction = null; }
+  document.getElementById("modalConfirmBtn").addEventListener("click", () => { if (pendingAction) pendingAction(); closeModal(); });
+
   function showToast(msg) {
     const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.classList.add("show");
+    t.textContent = msg; t.classList.add("show");
     setTimeout(() => t.classList.remove("show"), 2800);
   }
- 
-  // ── Helpers ──
-  function save() {
-    localStorage.setItem(BLOCKED_KEY,    JSON.stringify(blockedDays));
-    localStorage.setItem(CANCELLED_KEY,  JSON.stringify(cancelledSlots));
-    localStorage.setItem(APPROVED_KEY,   JSON.stringify(approvedSlots));
-  }
-  function getMonday(d) {
-    const day = d.getDay();
-    const diff= d.getDate() - day + (day===0 ? -6 : 1);
-    return new Date(new Date(d).setDate(diff));
-  }
-  function addDays(d, n) {
-    const r = new Date(d);
-    r.setDate(r.getDate()+n);
-    return r;
-  }
+
+  function getMonday(d) { const day = d.getDay(), diff = d.getDate()-day+(day===0?-6:1); return new Date(new Date(d).setDate(diff)); }
+  function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
   function fmt(d) { return d.toISOString().split("T")[0]; }
   function formatDisplay(dateStr) {
-    const [y,m,day] = dateStr.split("-").map(Number);
-    return new Date(y,m-1,day).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+    const p = dateStr.split("-").map(Number);
+    return new Date(p[0],p[1]-1,p[2]).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
   }
- 
-  // ── Init ──
+
   const urlParams = new URLSearchParams(window.location.search);
   const jumpDate  = urlParams.get("date");
-  if (jumpDate) {
-    const d = new Date(jumpDate + "T12:00:00");
-    currentMonday = getMonday(d);
+  if (jumpDate) currentMonday = getMonday(new Date(jumpDate + "T12:00:00"));
+
+  if (adminToken) {
+    loadData().then(render);
   }
-  render();
-
-  // ── Auto-refresh ──
-  function reloadData() {
-    deliveries     = JSON.parse(localStorage.getItem(DELIVERIES_KEY))  || {};
-    blockedDays    = JSON.parse(localStorage.getItem(BLOCKED_KEY))     || {};
-    cancelledSlots = JSON.parse(localStorage.getItem(CANCELLED_KEY))   || {};
-    approvedSlots  = JSON.parse(localStorage.getItem(APPROVED_KEY))    || {};
-    removedDeliveries = JSON.parse(localStorage.getItem(REMOVED_KEY)) || {};
-    render();
-  }
-
-  // Auto-refresh every 5 seconds
-  setInterval(reloadData, 5000);
-
-  // Instantly refresh if data changes in another tab
-  window.addEventListener("storage", reloadData);
+  setInterval(() => { if (adminToken) loadData().then(render); }, 10000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>emailjs.init("G01hd-w3QqqqF_QWl");</script>
