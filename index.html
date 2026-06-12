@@ -6,7 +6,7 @@
 </head>
 <body>
 
-   <div class="page-layout">
+  <div class="page-layout">
     <div class="sidebar">
       <h1>Sheridan Delivery Schedule Calendar</h1>
 
@@ -47,9 +47,10 @@
     </div>
   </div>
 
+
   <div id="popup" class="popup hidden">
     <div class="popup-box">
-      <button class="popup-close" onclick="closePopup()">&times;</button>
+            <button class="popup-close" onclick="closePopup()">&times;</button>
             <h2 id="popupTitle">Add Delivery</h2>
       <p class="required-key"><span class="required-asterisk">*</span> = required field</p>
 
@@ -83,7 +84,28 @@
 
       <label>Address (optional)</label>
       <textarea id="address"></textarea>
-        
+
+   <label>Delivery Notes</label>
+   <textarea id="deliveryNotes"></textarea>
+
+      <div class="buttons">
+        <button onclick="enableEdit()" id="editBtn">Edit</button>
+        <button onclick="saveDelivery()" id="saveBtn">Save</button>
+        <button onclick="deleteDelivery()" id="deleteBtn">Delete</button>
+        <button onclick="closePopup()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="saveSuccess" class="toast hidden">
+    ✓ Delivery saved! Approval request sent to manager.
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>emailjs.init("G01hd-w3QqqqF_QWl");</script>
+  <script src="app.js"></script>
+</body>
+</html>
    <label>Delivery Notes</label>
    <textarea id="deliveryNotes"></textarea>
 

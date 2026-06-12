@@ -8,7 +8,7 @@
 body {
   font-family: Arial, sans-serif;
   background: var(--light-gray);
-  margin: 20px;
+  margin: 10px;
 }
 
 h1 {
@@ -19,12 +19,12 @@ h1 {
 
 .page-layout {
   display: flex;
-  gap: 24px;
+  gap: 10px;
   align-items: flex-start;
 }
 
 .sidebar {
-  flex: 0 0 280px;
+  flex: 0 0 200px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -40,10 +40,23 @@ h1 {
   flex-direction: column;
   align-items: stretch;
   margin-bottom: 0;
+  gap: 4px;
 }
 
 .sidebar .search-bar input {
   width: 100%;
+  min-width: 0;
+  padding: 6px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.sidebar .search-bar button {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .main-content {
@@ -71,10 +84,11 @@ h1 {
 
 .controls {
   display: flex;
-  justify-content: left ;
+  justify-content: center;
   align-items: center;
   gap: 25px;
-  margin-bottom: 20px;
+  margin-bottom: 5px;
+  margin-top: -5px;
 }
 
 #weekTitle {
@@ -366,7 +380,7 @@ button:hover {
 
 .search-bar {
   display: flex;
-  justify-content: left;
+  justify-content: center;
   gap: 10px;
   margin-bottom: 20px;
 }
