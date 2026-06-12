@@ -6,42 +6,46 @@
 </head>
 <body>
 
-  <h1>Sheridan Delivery Schedule Calendar</h1>
+   <div class="page-layout">
+    <div class="sidebar">
+      <h1>Sheridan Delivery Schedule Calendar</h1>
 
-  <div class="controls">
-    <button onclick="changeWeek(-1)">Previous Week</button>
-    <h2 id="weekTitle"></h2>
-    <button onclick="changeWeek(1)">Next Week</button>
-    <button onclick="goToToday()" id="todayBtn">Today</button>
+      <div class="search-bar">
+        <input
+          type="text"
+          id="searchOrder"
+          placeholder="Search Order Number"
+        >
+
+        <button onclick="searchOrder()">Search</button>
+
+        <button onclick="clearSearch()">Clear</button>
+      </div>
+
+      <div class="search-bar my-deliveries-bar">
+        <input
+          type="text"
+          id="myDeliveriesName"
+          placeholder="Enter your name to see your deliveries"
+        >
+
+        <button onclick="showMyDeliveries()">My Deliveries</button>
+      </div>
+
+      <div id="myDeliveriesResults" class="my-deliveries hidden"></div>
+    </div>
+
+    <div class="main-content">
+      <div class="controls">
+        <button onclick="changeWeek(-1)">Previous Week</button>
+        <h2 id="weekTitle"></h2>
+        <button onclick="changeWeek(1)">Next Week</button>
+        <button onclick="goToToday()" id="todayBtn">Today</button>
+      </div>
+
+      <div id="calendar"></div>
+    </div>
   </div>
-
-    <div class="search-bar">
-  <input
-    type="text"
-    id="searchOrder"
-    placeholder="Search Order Number"
-  >
-
-  <button onclick="searchOrder()">Search</button>
-
-  <button onclick="clearSearch()">Clear</button>
-</div>
-
-    <div class="search-bar my-deliveries-bar">
-  <input
-    type="text"
-        id="myDeliveriesName"
-    placeholder="Enter your name to see your deliveries"
-  >
-
-  <button onclick="showMyDeliveries()">My Deliveries</button>
-</div>
-
-  
-  <div id="myDeliveriesResults" class="my-deliveries hidden"></div>
-
-  <div id="calendar"></div>
-    
 
   <div id="popup" class="popup hidden">
     <div class="popup-box">
