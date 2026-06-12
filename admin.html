@@ -288,6 +288,12 @@
       border-radius: 8px;
       overflow: hidden;
     }
+    
+    .day-block.day-past {
+  opacity: .5;
+  filter: grayscale(30%);
+}
+    
     .day-block.day-blocked {
       border-color: var(--danger);
       opacity: .85;
@@ -698,6 +704,51 @@
       });
   }
 
+  let dragKey = null;
+
+function dragStart(e, key) {
+  dragKey = key;
+  e.dataTransfer.effectAllowed = "move";
+}
+
+function dragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add("drag-over");
+}
+
+function dragLeave(e) {
+  e.currentTarget.classList.remove("drag-over");
+}
+
+async function dragDrop(e, toKey) {
+  e.preventDefault();
+  e.currentTarget.classList.remove("drag-over");
+  if (!dragKey || dragKey === toKey) { dragKey = null; return; }
+  await moveDelivery(dragKey, toKey);
+  dragKey = null;
+}
+
+async function moveDelivery(fromKey, toKey) {
+  const delivery = deliveries[fromKey];
+  if (!delivery) return;
+  if (deliveries[toKey]) { showToast("That slot is already occupied."); return; }
+
+  const toDateKey = toKey.split("-slot-")[0];
+  const toSlot    = parseInt(toKey.split("-slot-")[1], 10);
+
+  deliveries[toKey] = delivery;
+  delete deliveries[fromKey];
+  render();
+
+  try {
+    const res = await fetch(API_URL + "/deliveries/" + delivery.id, { method: "PUT",
+      headers: authHeaders(), body: JSON.stringify({ date_key: toDateKey, slot: toSlot }) });
+    if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+    await loadData(); render();
+    showToast("Delivery moved to " + formatDisplay(toDateKey) + ", Slot " + toSlot + ".");
+  } catch (err) { showToast("Moved locally — could not sync to server."); }
+}
+  
   function approveSlot(key, orderNum) {
     const delivery = deliveries[key];
     showConfirm("Approve Delivery?",
@@ -965,6 +1016,7 @@ async function deleteCancelled(id) {
       const date      = addDays(currentMonday, i);
       const dateKey   = fmt(date);
       const isBlocked = !!blockedDays[dateKey];
+      const isPast = dateKey < fmt(new Date());
 
       const slots = Array.from({ length: 5 }, (_, s) => {
         const slot = s+1, key = dateKey+"-slot-"+slot, d = deliveries[key];
@@ -989,7 +1041,9 @@ async function deleteCancelled(id) {
             '<button class="reject-btn" onclick="rejectSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Reject</button>' +
             '<button class="remove-btn" onclick="removeSlot(\'' + key + '\',\'' + (d.orderNumber||"") + '\')">Remove</button></div>';
         }
-        return '<div class="delivery-row" data-key="' + key + '">' +
+       return '<div class="delivery-row" data-key="' + key + '"' +
+  (d ? ' draggable="true" ondragstart="dragStart(event,\'' + key + '\')"' : '') +
+  ' ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dragDrop(event,\'' + key + '\')">' +
           '<span class="slot-label">Slot ' + slot + '</span>' +
           '<div class="delivery-info"' + (d ? ' style="cursor:pointer;" onclick="showDeliveryDetails(\'' + key + '\')"' : '') + '>' +
           (d ? '<div class="order">#' + (d.orderNumber||"—") + '</div><div class="sub">' + (d.onsiteContact||"") + (d.preferredTime ? " · "+d.preferredTime : "") + '</div>'
@@ -997,7 +1051,7 @@ async function deleteCancelled(id) {
           '</div>' + statusHtml + actionHtml + '</div>';
       }).join("");
 
-      return '<div class="day-block' + (isBlocked ? " day-blocked" : "") + '">' +
+      return '<div class="day-block' + (isBlocked ? " day-blocked" : "") + (isPast ? " day-past" : "") + '">' +
         '<div class="day-title' + (isBlocked ? " blocked-title" : "") + '">' +
         '<span>' + name + ', ' + formatDisplay(dateKey) + '</span>' +
         (isBlocked ? '<span class="blocked-badge">' + blockedDays[dateKey].reason + '</span>' : '') +
@@ -1027,9 +1081,11 @@ async function deleteCancelled(id) {
   }
 
   function clearAdminSearch() {
-    document.getElementById("adminSearch").value = "";
-    document.getElementById("adminSearchResults").classList.add("hidden");
-  }
+  document.getElementById("adminSearch").value = "";
+  const resultsBox = document.getElementById("adminSearchResults");
+  resultsBox.innerHTML = "";
+  resultsBox.classList.add("hidden");
+}
 
   function jumpToDelivery(dateKey) {
     currentMonday = getMonday(new Date(dateKey + "T12:00:00"));

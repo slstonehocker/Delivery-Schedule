@@ -249,6 +249,51 @@ app.delete("/cancelled-deliveries/:id", requireAdmin, async (req, res) => {
   }
 });
 
+// ── Blocked Times ──────────────────────────────────────────────────────────
+
+// GET /blocked-times — get all blocked times
+app.get("/blocked-times", async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM blocked_times ORDER BY date_key, preferred_time");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to get blocked times" });
+  }
+});
+
+// POST /blocked-times — block a time on a day (admin only)
+app.post("/blocked-times", requireAdmin, async (req, res) => {
+  const { dateKey, preferredTime } = req.body;
+  if (!dateKey || !preferredTime) {
+    return res.status(400).json({ error: "dateKey and preferredTime are required" });
+  }
+  try {
+    const result = await db.query(
+      "INSERT INTO blocked_times (date_key, preferred_time) VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING *",
+      [dateKey, preferredTime]
+    );
+    res.status(201).json(result.rows[0] || { dateKey, preferredTime });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to block time" });
+  }
+});
+
+// DELETE /blocked-times/:dateKey/:preferredTime — unblock a time
+app.delete("/blocked-times/:dateKey/:preferredTime", requireAdmin, async (req, res) => {
+  try {
+    await db.query(
+      "DELETE FROM blocked_times WHERE date_key=$1 AND preferred_time=$2",
+      [req.params.dateKey, req.params.preferredTime]
+    );
+    res.json({ message: "Time unblocked" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to unblock time" });
+  }
+});
+
 // ── Start Server ───────────────────────────────────────────────────────────
 app.listen(port, () => {
   console.log("Delivery API running at http://localhost:" + port);
