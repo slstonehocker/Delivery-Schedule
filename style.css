@@ -67,7 +67,7 @@ button:hover {
   background: white;
   border: 1px solid var(--border);
   border-radius: 8px;
-  min-height: 650px;
+  min-height: 200px;
   padding: 10px;
   min-width: 0;
 }
@@ -75,6 +75,11 @@ button:hover {
 .day.today {
   border: 2px solid var(--maroon);
   box-shadow: 0 0 0 2px rgba(129, 20, 25, 0.15);
+}
+
+.day.past {
+  opacity: 0.5;
+  filter: grayscale(30%);
 }
 
 .day-header {
@@ -85,6 +90,46 @@ button:hover {
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 10px;
+}
+
+/* ── Add Delivery Button Bar ── */
+.add-delivery-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.add-delivery-btn {
+  background: var(--maroon);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+  flex: 1;
+  transition: opacity 0.2s;
+}
+
+.add-delivery-btn:hover {
+  opacity: 0.85;
+}
+
+.add-delivery-btn.full {
+  background: #ccc;
+  color: #888;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.slot-count {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  font-style: italic;
 }
 
 .slot {
@@ -168,6 +213,29 @@ button:hover {
   box-shadow: 0 10px 25px rgba(0,0,0,.15);
 }
 
+.popup-box {
+  position: relative;
+}
+
+.popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+
+.popup-close:hover {
+  color: var(--maroon);
+  opacity: 1;
+}
+
 .popup-box h2 {
   color: var(--maroon);
   margin-top: 0;
@@ -230,6 +298,18 @@ button:hover {
   font-size: 13px;
   text-align: center;
   padding: 8px 4px 12px;
+}
+
+.blocked-time-notice {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 5px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  border-left: 4px solid #f59e0b;
+  text-align: center;
 }
 
 .search-bar {

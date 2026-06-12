@@ -17,15 +17,15 @@
       --success: #166534;
       --success-bg: #dcfce7;
     }
- 
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
- 
+
     body {
       font-family: Arial, sans-serif;
       background: var(--light-gray);
       min-height: 100vh;
     }
- 
+
     /* ── Header ── */
     .header {
       background: var(--maroon);
@@ -57,7 +57,7 @@
       transition: color .15s;
     }
     .back-link:hover { color: white; }
- 
+
     /* ── Layout ── */
     .page {
       max-width: 1100px;
@@ -68,7 +68,7 @@
       gap: 24px;
       align-items: start;
     }
- 
+
     /* ── Cards ── */
     .card {
       background: white;
@@ -87,7 +87,7 @@
       gap: 8px;
     }
     .card-body { padding: 20px; }
- 
+
     /* ── Block Day Panel ── */
     .block-section { margin-bottom: 24px; }
     .block-section label {
@@ -114,7 +114,7 @@
       border-color: var(--maroon);
     }
     .block-section textarea { height: 70px; resize: vertical; }
- 
+
     .reason-pills {
       display: flex;
       flex-wrap: wrap;
@@ -138,7 +138,7 @@
       border-color: var(--maroon);
       color: white;
     }
- 
+
     .btn {
       width: 100%;
       padding: 10px;
@@ -157,7 +157,7 @@
       color: var(--maroon);
       border: 1.5px solid var(--maroon);
     }
- 
+
     /* ── Blocked Days List ── */
     .blocked-list { display: flex; flex-direction: column; gap: 10px; }
     .blocked-item {
@@ -204,7 +204,7 @@
       flex-shrink: 0;
     }
     .unblock-btn:hover { border-color: var(--maroon); color: var(--maroon); }
- 
+
     .empty-state {
       text-align: center;
       color: #999;
@@ -212,7 +212,7 @@
       padding: 20px 0;
       font-size: 14px;
     }
- 
+
     /* ── Right column: delivery management ── */
     .admin-search-bar {
       display: flex;
@@ -274,14 +274,14 @@
     }
     .week-nav button:hover { background: var(--maroon); color: white; }
     .week-nav .week-label { font-weight: bold; color: var(--maroon); font-size: 15px; }
- 
+
     .delivery-grid {
       padding: 16px 20px;
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
- 
+
     /* Day block */
     .day-block {
       border: 1px solid var(--border);
@@ -315,7 +315,7 @@
       font-weight: bold;
       letter-spacing: .5px;
     }
- 
+
     /* Delivery rows */
     .delivery-row {
       display: grid;
@@ -378,7 +378,7 @@
     .action-btns { display: flex; gap: 5px; align-items: center; }
     .status-cancelled { background: var(--danger-bg); color: var(--danger); }
     .status-empty { background: #eee; color: #888; }
- 
+
     .cancel-slot-btn {
       background: none;
       border: 1px solid #ccc;
@@ -396,7 +396,7 @@
     }
     .cancel-slot-btn.restore:hover { background: var(--success-bg); }
     .empty-slot { color: #bbb; font-style: italic; }
- 
+
     /* ── Toast ── */
     .toast {
       position: fixed;
@@ -415,7 +415,7 @@
       pointer-events: none;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
- 
+
     /* ── Confirm modal ── */
     .modal-overlay {
       position: fixed;
@@ -464,15 +464,15 @@
     </div>
   </div>
 </div>
- 
+
 <div class="header">
   <a class="back-link" href="index.html">Back to Calendar</a>
   <h1>Admin Panel</h1>
   <span class="badge">Admin Only</span>
 </div>
- 
+
 <div class="page">
- 
+
   <!-- LEFT: Block a day -->
   <div>
     <div class="card" style="margin-bottom:20px">
@@ -499,8 +499,43 @@
         <button class="btn btn-danger" onclick="blockDay()">Block This Day</button>
       </div>
     </div>
- 
-    <!-- Blocked days list -->
+
+    <!-- Block Time Frames -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">Block Time Frames</div>
+      <div class="card-body">
+        <div class="block-section">
+          <label>Date</label>
+          <input type="date" id="blockTimeDate">
+        </div>
+        <div class="block-section">
+          <label>Select Time Frames to Block</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+            <label style="font-weight:normal;display:flex;align-items:center;gap:8px;margin-top:0;">
+              <input type="checkbox" id="bt_early_morning" value="Early Morning"> Early Morning
+            </label>
+            <label style="font-weight:normal;display:flex;align-items:center;gap:8px;margin-top:0;">
+              <input type="checkbox" id="bt_late_morning" value="Late Morning"> Late Morning
+            </label>
+            <label style="font-weight:normal;display:flex;align-items:center;gap:8px;margin-top:0;">
+              <input type="checkbox" id="bt_early_afternoon" value="Early Afternoon"> Early Afternoon
+            </label>
+            <label style="font-weight:normal;display:flex;align-items:center;gap:8px;margin-top:0;">
+              <input type="checkbox" id="bt_late_afternoon" value="Late Afternoon"> Late Afternoon
+            </label>
+          </div>
+        </div>
+        <button class="btn btn-maroon" style="margin-top:12px;" onclick="blockTimes()">Block Selected Times</button>
+      </div>
+    </div>
+
+    <!-- Blocked Time Frames List -->
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">Blocked Time Frames</div>
+      <div class="card-body">
+        <div class="blocked-list" id="blockedTimesList"></div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header">Blocked Days</div>
       <div class="card-body">
@@ -516,7 +551,7 @@
       </div>
     </div>
   </div>
- 
+
   <!-- RIGHT: Weekly delivery management -->
   <div class="card">
     <div class="card-header">Manage Deliveries</div>
@@ -535,7 +570,7 @@
   </div>
 
 </div>
- 
+
 <!-- Confirm modal -->
 <div class="modal-overlay hidden" id="confirmModal">
   <div class="modal-box">
@@ -558,10 +593,10 @@
     </div>
   </div>
 </div>
- 
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
- 
+
 <script>
   const API_URL  = "http://localhost:4000";
   let adminToken = sessionStorage.getItem("adminToken") || null;
@@ -597,7 +632,8 @@
   }
   let deliveries          = {};
   let blockedDays         = {};
-  let cancelledDeliveries = [];  // array from API
+  let cancelledDeliveries = [];
+  let blockedTimesData    = [];  // array of { date_key, preferred_time, id }
   let currentMonday = getMonday(new Date());
   let selectedReason = "Weather";
   let pendingAction  = null;
@@ -608,14 +644,17 @@
 
   async function loadData() {
     try {
-      const [dRes, bRes, cRes] = await Promise.all([
+      const [dRes, bRes, cRes, btRes] = await Promise.all([
         fetch(API_URL + "/deliveries"),
         fetch(API_URL + "/blocked-days"),
-        fetch(API_URL + "/cancelled-deliveries")
+        fetch(API_URL + "/cancelled-deliveries"),
+        fetch(API_URL + "/blocked-times")
       ]);
-      const dArr = await dRes.json();
-      const bArr = await bRes.json();
-      const cArr = await cRes.json();
+      const dArr  = await dRes.json();
+      const bArr  = await bRes.json();
+      const cArr  = await cRes.json();
+      const btArr = await btRes.json();
+
       deliveries = {};
       dArr.forEach(d => {
         const key = d.date_key + "-slot-" + d.slot;
@@ -627,6 +666,7 @@
       blockedDays = {};
       bArr.forEach(b => { blockedDays[b.date_key] = { id: b.id, reason: b.reason, note: b.note }; });
       cancelledDeliveries = cArr;
+      blockedTimesData    = btArr;
     } catch (err) { console.error("Failed to load:", err); }
   }
 
@@ -771,60 +811,137 @@
       });
   }
 
-  function render() { renderBlockedList(); renderCancelledList(); renderDeliveryGrid(); }
+  // ── Block time frames ─────────────────────────────────────────────────────
+  async function blockTimes() {
+    const date = document.getElementById("blockTimeDate").value;
+    if (!date) { showToast("Please pick a date first."); return; }
 
-  function renderCancelledList() {
-    const list = document.getElementById("removedList");
-    if (!list) return;
-    if (!cancelledDeliveries.length) {
-      list.innerHTML = '<div class="empty-state">No removed or rejected deliveries.</div>';
+    const checkboxes = ["bt_early_morning", "bt_late_morning", "bt_early_afternoon", "bt_late_afternoon"];
+    const selected   = checkboxes.map(id => document.getElementById(id))
+                                 .filter(cb => cb.checked)
+                                 .map(cb => cb.value);
+
+    if (!selected.length) { showToast("Please select at least one time frame."); return; }
+
+    try {
+      await Promise.all(selected.map(time =>
+        fetch(API_URL + "/blocked-times", {
+          method: "POST", headers: authHeaders(),
+          body: JSON.stringify({ dateKey: date, preferredTime: time })
+        })
+      ));
+      // Clear checkboxes
+      checkboxes.forEach(id => document.getElementById(id).checked = false);
+      document.getElementById("blockTimeDate").value = "";
+      await loadData();
+      render();
+      showToast("Time frames blocked for " + formatDisplay(date));
+    } catch (err) { showToast("Could not connect to server."); }
+  }
+
+  // ── Unblock a time frame ──────────────────────────────────────────────────
+  async function unblockTime(dateKey, preferredTime) {
+    try {
+      await fetch(API_URL + "/blocked-times/" + dateKey + "/" + encodeURIComponent(preferredTime), {
+        method: "DELETE", headers: authHeaders()
+      });
+      await loadData();
+      render();
+      showToast(preferredTime + " unblocked for " + formatDisplay(dateKey));
+    } catch (err) { showToast("Could not connect to server."); }
+  }
+
+  function render() { renderBlockedList(); renderCancelledList(); renderBlockedTimesList(); renderDeliveryGrid(); }
+
+  function renderBlockedTimesList() {
+    const list = document.getElementById("blockedTimesList");
+    if (!blockedTimesData.length) {
+      list.innerHTML = '<div class="empty-state">No time frames blocked.</div>';
       return;
     }
-    list.innerHTML = cancelledDeliveries.map(c => {
+    // Group by date
+    const byDate = {};
+    blockedTimesData.forEach(t => {
+      if (!byDate[t.date_key]) byDate[t.date_key] = [];
+      byDate[t.date_key].push(t.preferred_time);
+    });
+    list.innerHTML = Object.keys(byDate).sort().map(date => {
+      const times = byDate[date];
       return '<div class="blocked-item">' +
         '<div class="info">' +
-          '<div class="date-label">' + formatDisplay(c.date_key) + ' — Slot ' + c.slot + '</div>' +
-          '<span class="reason-tag">' + c.reason + '</span>' +
-          '<div class="note">Order #' + (c.order_number||"—") + ' · ' + (c.salesperson_name||"—") + '</div>' +
+          '<div class="date-label">' + formatDisplay(date) + '</div>' +
+          times.map(t => '<span class="reason-tag" style="margin-right:4px;">' + t + '</span>').join("") +
         '</div>' +
-        '<button class="unblock-btn" onclick="restoreDelivery(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">Add Back</button>' +
+        '<div style="display:flex;flex-direction:column;gap:4px;">' +
+          times.map(t => '<button class="unblock-btn" onclick="unblockTime(\'' + date + '\',\'' + t + '\')">Unblock ' + t.split(" ")[0] + '</button>').join("") +
+        '</div>' +
       '</div>';
     }).join("");
   }
 
-  async function restoreDelivery(c) {
-    const key = c.original_key;
-    if (deliveries[key]) { showToast("That slot is now occupied — can't add back."); return; }
-    showConfirm("Add Back to Calendar?",
-      "Restore Order #" + (c.order_number||"—") + " to its original slot as a pending delivery?",
-      async () => {
-        try {
-          // Re-add to deliveries
-          const res = await fetch(API_URL + "/deliveries", {
-            method: "POST", headers: authHeaders(),
-            body: JSON.stringify({
-              dateKey:          c.date_key,
-              slot:             c.slot,
-              orderNumber:      c.order_number,
-              salespersonName:  c.salesperson_name,
-              salespersonEmail: c.salesperson_email,
-              phoneNumber:      c.phone_number,
-              onsiteContact:    c.onsite_contact,
-              preferredTime:    c.preferred_time,
-              address:          c.address,
-              deliveryNotes:    c.delivery_notes
-            })
-          });
-          if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
-
-          // Remove from cancelled list
-          await fetch(API_URL + "/cancelled-deliveries/" + c.id, { method: "DELETE", headers: authHeaders() });
-
-          await loadData(); render();
-          showToast("Delivery added back to calendar.");
-        } catch (err) { showToast("Could not connect to server."); }
-      });
+function renderCancelledList() {
+  const list = document.getElementById("removedList");
+  if (!list) return;
+  if (!cancelledDeliveries.length) {
+    list.innerHTML = '<div class="empty-state">No removed or rejected deliveries.</div>';
+    return;
   }
+  list.innerHTML = cancelledDeliveries.map(c => {
+    return '<div class="blocked-item">' +
+      '<div class="info">' +
+        '<div class="date-label">' + formatDisplay(c.date_key) + ' — Slot ' + c.slot + '</div>' +
+        '<span class="reason-tag">' + c.reason + '</span>' +
+        '<div class="note">Order #' + (c.order_number||"—") + ' · ' + (c.salesperson_name||"—") + '</div>' +
+      '</div>' +
+      '<button class="unblock-btn" onclick="restoreDelivery(' + JSON.stringify(c).replace(/"/g, '&quot;') + ')">Add Back</button>' +
+      '<button class="unblock-btn" style="background:#991b1b;color:#fff;" onclick="deleteCancelled(' + JSON.stringify(c.id) + ')">Delete</button>' +
+    '</div>';
+  }).join("");
+}
+
+async function restoreDelivery(c) {
+  const key = c.original_key;
+  if (deliveries[key]) { showToast("That slot is now occupied — can't add back."); return; }
+  showConfirm("Add Back to Calendar?",
+    "Restore Order #" + (c.order_number||"—") + " to its original slot as a pending delivery?",
+    async () => {
+      try {
+        const res = await fetch(API_URL + "/deliveries", {
+          method: "POST", headers: authHeaders(),
+          body: JSON.stringify({
+            dateKey:          c.date_key,
+            slot:             c.slot,
+            orderNumber:      c.order_number,
+            salespersonName:  c.salesperson_name,
+            salespersonEmail: c.salesperson_email,
+            phoneNumber:      c.phone_number,
+            onsiteContact:    c.onsite_contact,
+            preferredTime:    c.preferred_time,
+            address:          c.address,
+            deliveryNotes:    c.delivery_notes
+          })
+        });
+        if (!res.ok) { const e = await res.json(); showToast("Error: " + e.error); return; }
+
+        await fetch(API_URL + "/cancelled-deliveries/" + c.id, { method: "DELETE", headers: authHeaders() });
+
+        await loadData(); render();
+        showToast("Delivery added back to calendar.");
+      } catch (err) { showToast("Could not connect to server."); }
+    });
+}
+
+async function deleteCancelled(id) {
+  showConfirm("Delete Permanently?",
+    "This will fully remove this entry from the rejected/removed list.",
+    async () => {
+      try {
+        await fetch(API_URL + "/cancelled-deliveries/" + id, { method: "DELETE", headers: authHeaders() });
+        await loadData(); render();
+        showToast("Entry permanently deleted.");
+      } catch (err) { showToast("Could not connect to server."); }
+    });
+}
 
   function renderBlockedList() {
     const list = document.getElementById("blockedList");
@@ -842,7 +959,7 @@
     const grid     = document.getElementById("deliveryGrid");
     const dayNames = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
     document.getElementById("weekLabel").textContent =
-      formatDisplay(fmt(currentMonday)) + " \u2013 " + formatDisplay(fmt(addDays(currentMonday,4)));
+      formatDisplay(fmt(currentMonday)) + " – " + formatDisplay(fmt(addDays(currentMonday,4)));
 
     grid.innerHTML = dayNames.map((name, i) => {
       const date      = addDays(currentMonday, i);

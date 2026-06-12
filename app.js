@@ -23,6 +23,7 @@ let selectedDate  = "";
 let selectedSlot  = "";
 let deliveries    = {};
 let blockedDays   = {};
+let blockedTimes  = {};  // { "2026-06-10": ["Early Morning", "Late Morning"] }
 let isLoading     = false;
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -33,13 +34,15 @@ async function loadData() {
     const weekStart = formatDate(currentMonday);
 
     // Load deliveries and blocked days in parallel
-    const [deliveriesRes, blockedRes] = await Promise.all([
+    const [deliveriesRes, blockedRes, blockedTimesRes] = await Promise.all([
       fetch(`${API_URL}/deliveries?weekStart=${weekStart}`),
-      fetch(`${API_URL}/blocked-days`)
+      fetch(`${API_URL}/blocked-days`),
+      fetch(`${API_URL}/blocked-times`)
     ]);
 
-    const deliveriesArr = await deliveriesRes.json();
-    const blockedArr    = await blockedRes.json();
+    const deliveriesArr  = await deliveriesRes.json();
+    const blockedArr     = await blockedRes.json();
+    const blockedTimesArr = await blockedTimesRes.json();
 
     // Convert deliveries array to a keyed object the calendar can use
     deliveries = {};
@@ -63,6 +66,13 @@ async function loadData() {
     blockedDays = {};
     blockedArr.forEach(b => {
       blockedDays[b.date_key] = { reason: b.reason, note: b.note };
+    });
+
+    // Convert blocked times array to keyed object
+    blockedTimes = {};
+    blockedTimesArr.forEach(t => {
+      if (!blockedTimes[t.date_key]) blockedTimes[t.date_key] = [];
+      blockedTimes[t.date_key].push(t.preferred_time);
     });
 
   } catch (err) {
@@ -94,9 +104,11 @@ async function renderCalendar() {
     const dayBox = document.createElement("div");
     dayBox.className = "day";
 
-    if (dateKey === formatDate(new Date())) {
-      dayBox.classList.add("today");
-    }
+    const today  = formatDate(new Date());
+    const isPast = dateKey < today;
+
+    if (dateKey === today) dayBox.classList.add("today");
+    if (isPast) dayBox.classList.add("past");
 
     const isBlocked = !!blockedDays[dateKey];
 
@@ -114,21 +126,42 @@ async function renderCalendar() {
         </div>
       `;
     } else {
+      const filledCount = [1,2,3,4,5,6].filter(s => !!deliveries[`${dateKey}-slot-${s}`]).length;
+      const isFull      = filledCount >= 6;
+      const isDisabled  = isFull || isPast;
+
       dayBox.innerHTML = `
+        <div class="add-delivery-bar">
+          <button
+            class="add-delivery-btn${isDisabled ? " full" : ""}"
+            ${isDisabled ? "disabled" : `onclick="addDelivery('${dateKey}')"`}
+          >${isFull ? "Day Full" : isPast ? "Past" : "Add Delivery"}</button>
+          <span class="slot-count">${filledCount} / 6</span>
+        </div>
         <div class="day-header">
           ${dayName}<br>${formatDisplayDate(date)}
         </div>
       `;
 
-      const hasDeliveries = [1,2,3,4,5].some(slot => !!deliveries[`${dateKey}-slot-${slot}`]);
-      if (!hasDeliveries) {
-        dayBox.innerHTML += `<div class="empty-day">No deliveries scheduled for this day yet.</div>`;
+      if (filledCount === 0 && (!blockedTimes[dateKey] || blockedTimes[dateKey].length === 0)) {
+        dayBox.innerHTML += `<div class="empty-day">No deliveries scheduled yet.</div>`;
+      }
+
+      // Show blocked time notices
+      if (blockedTimes[dateKey] && blockedTimes[dateKey].length > 0) {
+        blockedTimes[dateKey].forEach(time => {
+          dayBox.innerHTML += `
+            <div class="blocked-time-notice">
+              ${time} — Blocked
+            </div>
+          `;
+        });
       }
     }
 
     const timeOrder = { "Early Morning": 1, "Late Morning": 2, "Early Afternoon": 3, "Late Afternoon": 4, "": 5 };
     const slotEntries = [];
-    for (let slot = 1; slot <= 5; slot++) {
+    for (let slot = 1; slot <= 6; slot++) {
       const key = `${dateKey}-slot-${slot}`;
       slotEntries.push({ slot, key, delivery: deliveries[key] });
     }
@@ -139,53 +172,61 @@ async function renderCalendar() {
     });
 
     slotEntries.forEach(({ slot, key, delivery }) => {
+      if (!delivery) return; // only show filled slots
+
       const slotBox = document.createElement("div");
       slotBox.className = "slot";
 
-      if (delivery) {
-        const isCancelled = delivery.status === "cancelled";
-        const isApproved  = delivery.status === "approved";
-        slotBox.classList.add("filled");
-        if (isCancelled) slotBox.style.borderLeft = "5px solid #991b1b";
-        if (isApproved)  slotBox.style.borderLeft = "5px solid #166534";
+      const isCancelled = delivery.status === "cancelled";
+      const isApproved  = delivery.status === "approved";
+      slotBox.classList.add("filled");
+      if (isCancelled) slotBox.style.borderLeft = "5px solid #991b1b";
+      if (isApproved)  slotBox.style.borderLeft = "5px solid #166534";
 
-        slotBox.innerHTML = `
-          <div class="slot-number">Slot ${slot}</div>
-          <div class="status ${isCancelled ? "" : isApproved ? "" : "pending"}" style="${
-            isCancelled ? "background:#fee2e2;color:#991b1b;" :
-            isApproved  ? "background:#dcfce7;color:#166534;" : ""
-          }">
-            ${isCancelled ? "Cancelled" : isApproved ? "Approved" : "Pending Approval"}
-          </div>
-          <div class="delivery-line"><strong>Order #:</strong> ${delivery.orderNumber || ""}</div>
-          <div class="delivery-line"><strong>Phone:</strong> ${delivery.phoneNumber || ""}</div>
-          <div class="delivery-line"><strong>Contact:</strong> ${delivery.onsiteContact || ""}</div>
-          <div class="delivery-line"><strong>Time:</strong> ${delivery.preferredTime || ""}</div>
-          <div class="delivery-line"><strong>Address:</strong> ${delivery.address || ""}</div>
-          <div class="delivery-line">
-            <strong>Notes:</strong>
-            ${(delivery.deliveryNotes || "").substring(0, 30)}
-            ${(delivery.deliveryNotes || "").length > 30 ? "..." : ""}
-          </div>
-        `;
-      } else {
-        slotBox.innerHTML = `
-          <div class="slot-number">Slot ${slot}</div>
-          <div class="open">Click to add delivery</div>
-        `;
-      }
+      slotBox.innerHTML = `
+        <div class="slot-number">Slot ${slot}</div>
+        <div class="status ${isCancelled ? "" : isApproved ? "" : "pending"}" style="${
+          isCancelled ? "background:#fee2e2;color:#991b1b;" :
+          isApproved  ? "background:#dcfce7;color:#166534;" : ""
+        }">
+          ${isCancelled ? "Cancelled" : isApproved ? "Approved" : "Pending Approval"}
+        </div>
+        <div class="delivery-line"><strong>Order #:</strong> ${delivery.orderNumber || ""}</div>
+        <div class="delivery-line"><strong>Phone:</strong> ${delivery.phoneNumber || ""}</div>
+        <div class="delivery-line"><strong>Contact:</strong> ${delivery.onsiteContact || ""}</div>
+        <div class="delivery-line"><strong>Time:</strong> ${delivery.preferredTime || ""}</div>
+        <div class="delivery-line"><strong>Address:</strong> ${delivery.address || ""}</div>
+        <div class="delivery-line">
+          <strong>Notes:</strong>
+          ${(delivery.deliveryNotes || "").substring(0, 30)}
+          ${(delivery.deliveryNotes || "").length > 30 ? "..." : ""}
+        </div>
+      `;
 
-      if (!isBlocked) {
+      if (!isPast) {
         slotBox.setAttribute("onclick", `openPopup('${dateKey}', ${slot})`);
       } else {
-        slotBox.style.cursor  = "not-allowed";
-        slotBox.style.opacity = "0.6";
+        slotBox.style.cursor = "default";
       }
       dayBox.appendChild(slotBox);
     });
 
     calendar.appendChild(dayBox);
   });
+}
+
+// ── Add Delivery (finds next open slot) ───────────────────────────────────
+function addDelivery(dateKey) {
+  // Find the first empty slot
+  for (let slot = 1; slot <= 6; slot++) {
+    const key = `${dateKey}-slot-${slot}`;
+    if (!deliveries[key]) {
+      openPopup(dateKey, slot);
+      return;
+    }
+  }
+  // All slots full (shouldn't reach here since button is disabled when full)
+  alert("This day is full — no slots available.");
 }
 
 // ── Open Popup ─────────────────────────────────────────────────────────────
@@ -211,6 +252,36 @@ function openPopup(dateKey, slot) {
 
   document.getElementById("popup").classList.remove("hidden");
   document.getElementById("saveSuccess").classList.add("hidden");
+
+  // Grey out preferred time options that are already at the limit (2 per time per day)
+  const TIME_LIMIT = 2;
+  const timeCounts = {};
+  for (let s = 1; s <= 6; s++) {
+    const k = `${dateKey}-slot-${s}`;
+    if (deliveries[k] && deliveries[k].preferredTime && k !== key) {
+      const t = deliveries[k].preferredTime;
+      timeCounts[t] = (timeCounts[t] || 0) + 1;
+    }
+  }
+  const select = document.getElementById("preferredTime");
+  Array.from(select.options).forEach(opt => {
+    if (!opt.value) return;
+    const isTimeFull    = (timeCounts[opt.value] || 0) >= TIME_LIMIT;
+    const isTimeBlocked = blockedTimes[dateKey] && blockedTimes[dateKey].includes(opt.value);
+    if (isTimeFull) {
+      opt.disabled = true;
+      opt.text = opt.value + " (full)";
+      opt.style.color = "#aaa";
+    } else if (isTimeBlocked) {
+      opt.disabled = true;
+      opt.text = opt.value + " (blocked)";
+      opt.style.color = "#aaa";
+    } else {
+      opt.disabled = false;
+      opt.text = opt.value;
+      opt.style.color = "";
+    }
+  });
 
   const isExisting = !!delivery;
   const fields = ["salespersonName","salespersonEmail","salespersonEmailConfirm","orderNumber","phoneNumber","onsiteContact","preferredTime","address","deliveryNotes"];
